@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <TM1637.h>
-#include "security_code.h"
+#include <security_code.h>
+#include <ChainableLED.h>
+
+#define NUM_LEDS 1
 
 const int CLK = 6;
 const int DIO = 7;
@@ -11,6 +14,7 @@ const int WHITE_PIN = 3;
 const int RED_PIN = 4;    
 const int GREEN_PIN = 5;  
 const int BUZZER_PIN = 11;
+ChainableLED leds(8, 9, NUM_LEDS);
 
 int goodCombination[4] = {1, 2, 3, 4}; 
 int secretCode[4] = {0, 0, 0, 0}; 
@@ -42,18 +46,20 @@ void setupSecurity() {
   
   tm1637.init();
   tm1637.set(BRIGHT_TYPICAL);
-  tm1637.clearDisplay(); 
+  tm1637.clearDisplay();
+  leds.setColorHSB(0, 0.0, 0.0, 0.0);
 }
 
 void resetAlarmState() {
   systemDisarmed = false;
   CursorPosition = 0;
   secretCode[0]=0; secretCode[1]=0; secretCode[2]=0; secretCode[3]=0;
-  resetBlinking(); 
+  resetBlinking();
 }
 
 // --- LOGIQUE ---
 bool runSecurityLogic() {
+  leds.setColorHSB(0, 0.04, 1.0, 0.2);
   if (millis() - LastTimeBlink > BLINKING_SPEED) {
     numberLight = !numberLight; 
     LastTimeBlink = millis();
@@ -171,15 +177,18 @@ void waitingRelease(int pin) {
 }
 
 void sucessAnimation() {
+  leds.setColorHSB(0, 0.30, 1.0, 0.5);
   for(int i=0; i<3; i++) {
     tm1637.clearDisplay(); delay(200);
     tm1637.display(0, secretCode[0]); tm1637.display(1, secretCode[1]);
     tm1637.display(2, secretCode[2]); tm1637.display(3, secretCode[3]);
-    delay(200);
+    delay(2000);
+    leds.setColorHSB(0, 0.0, 0.0, 0.0);
   }
 }
 
 void errorAnimation() {
+  leds.setColorHSB(0, 0.0, 1.0, 0.5);
   for(int i=0; i<4; i++) {
     tm1637.display(0,0); tm1637.display(1,0); tm1637.display(2,0); tm1637.display(3,0);
     delay(100);
