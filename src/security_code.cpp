@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include <TM1637.h>
-#include <security_code.h>
 #include <ChainableLED.h>
+#include <security_code.h>
+#include <security_audio.h>
+#include <security_animation.h>
 
 #define NUM_LEDS 1
 
@@ -28,14 +30,9 @@ bool systemDisarmed = false;
 
 void updateScreen();
 void handleButtons();
-void pressBeepSound();
-void goodCombinationSound();
-void wrongCombinationSound();
 void resetBlinking();
 void codeVerification();
 void waitingRelease(int pin);
-void sucessAnimation();
-void errorAnimation();
 
 void setupSecurity() {
   pinMode(BLUE_PIN, INPUT_PULLUP);
@@ -74,7 +71,7 @@ bool runSecurityLogic() {
 // --- GESTION DES BOUTONS ---
 void handleButtons() {
   if (digitalRead(BLUE_PIN) == LOW) { 
-    pressBeepSound();
+    playPressBeep(BUZZER_PIN);
     secretCode[CursorPosition]++;
     if (secretCode[CursorPosition] > 9) secretCode[CursorPosition] = 0;
     resetBlinking();
@@ -82,7 +79,7 @@ void handleButtons() {
   }
   
   if (digitalRead(WHITE_PIN) == LOW) {
-    pressBeepSound();
+    playPressBeep(BUZZER_PIN);
     secretCode[CursorPosition]--;
     if (secretCode[CursorPosition] < 0) secretCode[CursorPosition] = 9;
     resetBlinking();
@@ -91,7 +88,7 @@ void handleButtons() {
   
   if (digitalRead(GREEN_PIN) == LOW) {
     if (CursorPosition < 3) {
-      pressBeepSound();
+      playPressBeep(BUZZER_PIN);
       CursorPosition++;
       resetBlinking();
     } else {
@@ -101,30 +98,13 @@ void handleButtons() {
   }
   
   if (digitalRead(RED_PIN) == LOW) {
-    pressBeepSound();
+    playPressBeep(BUZZER_PIN);
     if (CursorPosition > 0) {
       CursorPosition--;
     }
     resetBlinking();
     waitingRelease(RED_PIN);
   }
-}
-
-// --- AUDIO ---
-void pressBeepSound() {
-  tone(BUZZER_PIN, 2500, 30);
-}
-
-void goodCombinationSound() {
-  tone(BUZZER_PIN, 1000, 100); 
-  delay(100);
-  tone(BUZZER_PIN, 2000, 150); 
-  delay(150);
-}
-
-void wrongCombinationSound() {
-  tone(BUZZER_PIN, 150, 400); 
-  delay(400);
 }
 
 // --- AFFICHAGE ---
@@ -157,15 +137,15 @@ void codeVerification() {
 
   if (isTrue) {
     Serial.println("CODE CORRECT");
-    goodCombinationSound();
-    sucessAnimation();
-    
+    playGoodCombinationSound(BUZZER_PIN);
+    playSuccessAnimation(tm1637, leds, secretCode);
+
     systemDisarmed = true;
     tm1637.clearDisplay();
   } else {
     Serial.println("CODE FAUX");
-    wrongCombinationSound();
-    errorAnimation();
+    playWrongCombinationSound(BUZZER_PIN);
+    playErrorAnimation(tm1637, leds);
     resetBlinking();
   }
 }
@@ -174,25 +154,4 @@ void waitingRelease(int pin) {
   delay(50);
   while (digitalRead(pin) == LOW) {} 
   delay(50);
-}
-
-void sucessAnimation() {
-  leds.setColorHSB(0, 0.30, 1.0, 0.5);
-  for(int i=0; i<3; i++) {
-    tm1637.clearDisplay(); delay(200);
-    tm1637.display(0, secretCode[0]); tm1637.display(1, secretCode[1]);
-    tm1637.display(2, secretCode[2]); tm1637.display(3, secretCode[3]);
-    delay(2000);
-    leds.setColorHSB(0, 0.0, 0.0, 0.0);
-  }
-}
-
-void errorAnimation() {
-  leds.setColorHSB(0, 0.0, 1.0, 0.5);
-  for(int i=0; i<4; i++) {
-    tm1637.display(0,0); tm1637.display(1,0); tm1637.display(2,0); tm1637.display(3,0);
-    delay(100);
-    tm1637.clearDisplay();
-    delay(100);
-  }
 }
