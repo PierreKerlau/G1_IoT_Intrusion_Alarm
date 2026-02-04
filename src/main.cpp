@@ -1,13 +1,19 @@
 #include <Arduino.h>
 #include "security_code.h"
 #include "motion_detector.h"
+#include "lora_comm.h"
 
 bool isAlarmActive = false;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+
   setupMotion();
   setupSecurity();
+  setupLora();
+
+  Serial.println("System ready.");
+  loraSendSensorState(0);
 }
 
 void loop() {
@@ -16,7 +22,7 @@ void loop() {
       resetAlarmState(); 
       
       isAlarmActive = true;
-      Serial.println("Motion detected.");
+      loraSendSensorState(1);
     }
     delay(100); 
   } 
@@ -26,9 +32,7 @@ void loop() {
 
     if (disarmed == true) {
       isAlarmActive = false;
-      Serial.println("System disarmed.");
-      delay(3000); 
-      Serial.println("Waiting for motion.");
+      loraSendSensorState(0);
     }
   }
 }
