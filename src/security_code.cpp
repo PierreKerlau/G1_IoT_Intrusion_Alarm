@@ -7,19 +7,17 @@
 
 #define NUM_LEDS 1
 
-const int CLK = 6;
-const int DIO = 7;
-TM1637 tm1637(CLK, DIO);
+TM1637 tm1637(6, 7);
 
-const int BLUE_PIN = 2;   
-const int WHITE_PIN = 3;  
-const int RED_PIN = 4;    
-const int GREEN_PIN = 5;  
+const int BLUE_PIN = 2;
+const int WHITE_PIN = 3;
+const int RED_PIN = 4;
+const int GREEN_PIN = 5;
 const int BUZZER_PIN = 11;
 ChainableLED leds(8, 9, NUM_LEDS);
 
-int goodCombination[4] = {1, 2, 3, 4}; 
-int secretCode[4] = {0, 0, 0, 0}; 
+int goodCombination[4] = {1, 2, 3, 4};
+int secretCode[4] = {0, 0, 0, 0};
 int CursorPosition = 0;
 
 unsigned long LastTimeBlink = 0;
@@ -70,7 +68,7 @@ bool runSecurityLogic() {
 
 // --- GESTION DES BOUTONS ---
 void handleButtons() {
-  if (digitalRead(BLUE_PIN) == LOW) { 
+  if (digitalRead(BLUE_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
     secretCode[CursorPosition]++;
     if (secretCode[CursorPosition] > 9) secretCode[CursorPosition] = 0;
