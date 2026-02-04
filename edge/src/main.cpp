@@ -13,26 +13,24 @@ void setup() {
   setupLora();
 
   Serial.println("System ready.");
-  loraSendSensorState(0);
+  loraSendMotionState(false);
 }
 
 void loop() {
-  if (!isAlarmActive) {
-    if (checkMotion() == true) {
+  if (!isAlarmActive) { // No alarm triggered, just check for motion
+    if (checkMotion() == true) { // Motion detected, trigger alarm
       resetAlarmState(); 
-      
+
       isAlarmActive = true;
-      loraSendSensorState(1);
+      loraSendMotionState(true);
     }
     delay(100); 
-  } 
-  
-  else {
+  } else {
     bool disarmed = runSecurityLogic();
 
     if (disarmed == true) {
       isAlarmActive = false;
-      loraSendSensorState(0);
+      loraSendMotionState(false);
     }
   }
 }
