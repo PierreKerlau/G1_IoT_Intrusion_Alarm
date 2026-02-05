@@ -19,12 +19,12 @@ void setup() {
 void loop() {
   if (!isAlarmActive) { // No alarm triggered, just check for motion
     if (checkMotion() == true) { // Motion detected, trigger alarm
-      resetAlarmState(); 
+      loraSendMotionState(true);
+      resetAlarmState();
 
       isAlarmActive = true;
-      loraSendMotionState(true);
     }
-    delay(100); 
+    delay(100);
   } else {
     bool disarmed = runSecurityLogic();
 
