@@ -2,6 +2,7 @@
 #include "security_code.h"
 #include "motion_detector.h"
 #include "lora_comm.h"
+#include "rtc.h"
 
 bool isAlarmActive = false;
 
@@ -10,6 +11,7 @@ void setup() {
 
   setupMotion();
   setupSecurity();
+  setupRTC();
   setupLora();
 
   Serial.println("System ready.");
@@ -24,6 +26,7 @@ void loop() {
 
       isAlarmActive = true;
     }
+    Serial.println(getTimeString());
     delay(100);
   } else {
     bool disarmed = runSecurityLogic();
