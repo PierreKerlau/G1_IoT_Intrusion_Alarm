@@ -2,6 +2,7 @@
 #include "security_code.h"
 #include "motion_detector.h"
 #include "lora_comm.h"
+#include "rtc.h"
 
 bool isAlarmActive = false;
 
@@ -10,29 +11,29 @@ void setup() {
 
   setupMotion();
   setupSecurity();
+  setupRTC();
   setupLora();
 
   Serial.println("System ready.");
-  loraSendSensorState(0);
+  loraSendMotionState(false);
 }
 
 void loop() {
-  if (!isAlarmActive) {
-    if (checkMotion() == true) {
-      resetAlarmState(); 
-      
+  if (!isAlarmActive) { // No alarm triggered, just check for motion
+    if (checkMotion() == true) { // Motion detected, trigger alarm
+      loraSendMotionState(true);
+      resetAlarmState();
+
       isAlarmActive = true;
-      loraSendSensorState(1);
     }
-    delay(100); 
-  } 
-  
-  else {
+    Serial.println(getTimeString());
+    delay(100);
+  } else {
     bool disarmed = runSecurityLogic();
 
     if (disarmed == true) {
       isAlarmActive = false;
-      loraSendSensorState(0);
+      loraSendMotionState(false);
     }
   }
 }

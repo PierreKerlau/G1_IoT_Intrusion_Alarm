@@ -48,6 +48,7 @@ void setupSecurity() {
 void resetAlarmState() {
   systemDisarmed = false;
   CursorPosition = 0;
+  // TODO: Make secret code random or configurable
   secretCode[0]=0; secretCode[1]=0; secretCode[2]=0; secretCode[3]=0;
   resetBlinking();
 }
