@@ -1,32 +1,32 @@
 #include <Arduino.h>
-#include <TM1637.h>
 #include <ChainableLED.h>
-#include <security_code.h>
-#include <security_audio.h>
+#include <TM1637.h>
 #include <security_animation.h>
+#include <security_audio.h>
+#include <security_code.h>
 
 #define NUM_LEDS 1
 
 TM1637 tm1637(6, 7);
 
-const int BUTTON_BLUE_PIN = 2;
+const int BUTTON_BLUE_PIN  = 2;
 const int BUTTON_WHITE_PIN = 3;
-const int BUTTON_RED_PIN = 4;
+const int BUTTON_RED_PIN   = 4;
 const int BUTTON_GREEN_PIN = 5;
 
 const int BUZZER_PIN = 11;
 
-const int LED_CLK_PIN = 8;
-const int LED_DATA_PIN = 9;
+const int    LED_CLK_PIN  = 8;
+const int    LED_DATA_PIN = 9;
 ChainableLED leds(LED_CLK_PIN, LED_DATA_PIN, NUM_LEDS);
 
 int goodCombination[4] = {1, 2, 3, 4};
-int secretCode[4] = {0, 0, 0, 0};
-int CursorPosition = 0;
+int secretCode[4]      = {0, 0, 0, 0};
+int CursorPosition     = 0;
 
-unsigned long LastTimeBlink = 0;
-bool numberLight = true;
-const int BLINKING_SPEED = 400;
+unsigned long LastTimeBlink  = 0;
+bool          numberLight    = true;
+const int     BLINKING_SPEED = 400;
 
 bool systemDisarmed = false;
 
@@ -53,7 +53,10 @@ void resetAlarmState() {
   systemDisarmed = false;
   CursorPosition = 0;
   // TODO: Make secret code random or configurable
-  secretCode[0]=0; secretCode[1]=0; secretCode[2]=0; secretCode[3]=0;
+  secretCode[0] = 0;
+  secretCode[1] = 0;
+  secretCode[2] = 0;
+  secretCode[3] = 0;
   resetBlinking();
 }
 
@@ -61,7 +64,7 @@ void resetAlarmState() {
 bool runSecurityLogic() {
   setLedColorHSB(0.04, 1.0, 0.2);
   if (millis() - LastTimeBlink > BLINKING_SPEED) {
-    numberLight = !numberLight;
+    numberLight   = !numberLight;
     LastTimeBlink = millis();
     updateScreen();
   }
@@ -76,7 +79,8 @@ void handleButtons() {
   if (digitalRead(BUTTON_BLUE_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
     secretCode[CursorPosition]++;
-    if (secretCode[CursorPosition] > 9) secretCode[CursorPosition] = 0;
+    if (secretCode[CursorPosition] > 9)
+      secretCode[CursorPosition] = 0;
     resetBlinking();
     waitingRelease(BUTTON_BLUE_PIN);
   }
@@ -84,7 +88,8 @@ void handleButtons() {
   if (digitalRead(BUTTON_WHITE_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
     secretCode[CursorPosition]--;
-    if (secretCode[CursorPosition] < 0) secretCode[CursorPosition] = 9;
+    if (secretCode[CursorPosition] < 0)
+      secretCode[CursorPosition] = 9;
     resetBlinking();
     waitingRelease(BUTTON_WHITE_PIN);
   }
@@ -115,15 +120,14 @@ void updateScreen() {
   for (int i = 0; i < 4; i++) {
     if (i == CursorPosition && numberLight == false) {
       tm1637.display(i, 0x7f);
-    }
-    else {
+    } else {
       tm1637.display(i, secretCode[i]);
     }
   }
 }
 
 void resetBlinking() {
-  numberLight = true;
+  numberLight   = true;
   LastTimeBlink = millis();
   updateScreen();
 }
@@ -131,12 +135,16 @@ void resetBlinking() {
 // --- VERIFICATION ---
 void codeVerification() {
   bool isTrue = true;
-  for(int i=0; i<4; i++) {
-    if (secretCode[i] != goodCombination[i]) isTrue = false;
+  for (int i = 0; i < 4; i++) {
+    if (secretCode[i] != goodCombination[i])
+      isTrue = false;
   }
 
   CursorPosition = 0;
-  secretCode[0]=0; secretCode[1]=0; secretCode[2]=0; secretCode[3]=0;
+  secretCode[0]  = 0;
+  secretCode[1]  = 0;
+  secretCode[2]  = 0;
+  secretCode[3]  = 0;
 
   if (isTrue) {
     Serial.println("CODE CORRECT");

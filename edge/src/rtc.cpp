@@ -2,7 +2,7 @@
 #include "iarduino_RTC.h"
 #include "time_range.h"
 
-iarduino_RTC rtc(RTC_DS1307); // Module DS1307 I2C
+iarduino_RTC     rtc(RTC_DS1307); // Module DS1307 I2C
 TimeRangeChecker timeRangeChecker = TimeRangeChecker();
 
 void setupRTC() {

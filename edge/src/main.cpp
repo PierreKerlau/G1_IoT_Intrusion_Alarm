@@ -4,8 +4,11 @@
 #include "security_code.h"
 #include <Arduino.h>
 
-bool isAlarmActive = false;
-bool lastTimeInRange = false;
+#define PRINT_TIME_IN_LOOP
+
+bool          isAlarmActive   = false;
+bool          lastTimeInRange = false;
+unsigned long lastTimePrint;
 
 void setup() {
   Serial.begin(115200);
@@ -17,9 +20,18 @@ void setup() {
 
   Serial.println("System ready.");
   loraSendMotionState(false);
+  lastTimePrint = millis();
 }
 
 void loop() {
+#ifdef PRINT_TIME_IN_LOOP
+  if (millis() - lastTimePrint > 1000) { // Send heartbeat every minute
+    // loraSendMotionState(isAlarmActive);
+    lastTimePrint = millis();
+    Serial.println(getTimeString());
+  }
+#endif // PRINT_TIME_IN_LOOP
+
   if (!isAlarmActive) { // No alarm triggered, just check for motion
     if (isTimeInRanges() != lastTimeInRange) {
       Serial.print("Time range status changed: ");
@@ -33,15 +45,14 @@ void loop() {
     }
 
     if (isTimeInRanges()) {
-      Serial.print(getTimeString());
-      Serial.println(" - Monitoring for motion");
+      // Serial.print(getTimeString());
+      // Serial.println(" - Monitoring for motion");
       if (checkMotion() == true) { // Motion detected, trigger alarm
         loraSendMotionState(true);
         resetAlarmState();
 
         isAlarmActive = true;
       }
-      Serial.println(getTimeString());
     }
     delay(100);
   } else {

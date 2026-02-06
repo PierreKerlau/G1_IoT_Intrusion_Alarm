@@ -8,11 +8,11 @@ enum class PayloadType : uint8_t {
 };
 
 struct LoraPayload {
-  uint8_t  id;
-  uint32_t seq; // TODO: Remove
-  uint32_t ts;
+  uint8_t     id;
+  uint32_t    seq; // TODO: Remove
+  uint32_t    ts;
   PayloadType type;
-  uint32_t  data;
+  uint32_t    data;
   // TODO: Add cryptographic signature
 } __attribute__((packed));
 
@@ -20,8 +20,8 @@ void setupLora();
 
 void loraSendMotionState(bool state);
 
-bool waitRespAny(const char *expectedResponse1, const char *expectedResponse2, uint32_t timeoutMs);
+bool waitRespAny(const char* expectedResponse1, const char* expectedResponse2, uint32_t timeoutMs);
 
-void sendPayload(const LoraPayload &pkt);
+void sendPayload(const LoraPayload& pkt);
 
 #endif

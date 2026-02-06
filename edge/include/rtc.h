@@ -1,5 +1,5 @@
 #include <Arduino.h>
 
-void setupRTC();
+void   setupRTC();
 String getTimeString();
-bool isTimeInRanges();
+bool   isTimeInRanges();

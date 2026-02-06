@@ -3,5 +3,6 @@ Language: Cpp
 DerivePointerAlignment: false
 PointerAlignment: Left
 ColumnLimit: 0
-EnumTrailingCommaStyle: Remove
-AllowShortStatementsOnASingleLine: All
+AllowShortBlocksOnASingleLine: Empty
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: Consecutive

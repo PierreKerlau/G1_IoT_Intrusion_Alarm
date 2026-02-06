@@ -12,11 +12,11 @@ bool LORA_WORKING = false;
 
 static String payloadToHex(const LoraPayload& pkt) {
   const uint8_t* ptr = reinterpret_cast<const uint8_t*>(&pkt);
-  String hex;
+  String         hex;
   hex.reserve(sizeof(LoraPayload) * 2);
 
   for (size_t i = 0; i < sizeof(LoraPayload); i++) {
-    uint8_t b = ptr[i];
+    uint8_t     b        = ptr[i];
     const char* hexChars = "0123456789ABCDEF";
     hex += hexChars[b >> 4];
     hex += hexChars[b & 0x0F];
@@ -46,7 +46,7 @@ void setupLora() {
 
 bool waitRespAny(const char* expectedResponse1, const char* expectedResponse2, uint32_t timeoutMs) {
   uint32_t start = millis();
-  String resp;
+  String   resp;
 
   while (millis() - start < timeoutMs) {
     while (Serial1.available()) {
@@ -81,9 +81,9 @@ void loraSendMotionState(bool state) {
   }
 
   LoraPayload pkt;
-  pkt.id = LORA_NODE_ID;
-  pkt.seq = g_seq++;
-  pkt.ts = millis();
+  pkt.id   = LORA_NODE_ID;
+  pkt.seq  = g_seq++;
+  pkt.ts   = millis();
   pkt.data = state;
   pkt.type = PayloadType::MOTION_STATE;
 

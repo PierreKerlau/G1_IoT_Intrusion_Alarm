@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <security_audio.h>
 
-// #define USE_SOUND
+#define USE_SOUND
 
 void playPressBeep(int buzzerPin) {
 #ifdef USE_SOUND
