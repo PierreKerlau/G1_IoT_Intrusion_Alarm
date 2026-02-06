@@ -3,6 +3,7 @@
 
 void setupSecurity();
 bool runSecurityLogic();
-void resetAlarmState(); // <--- NOUVELLE FONCTION
+void resetAlarmState();
+void setLedColorHSB(float hue, float saturation, float brightness);
 
 #endif

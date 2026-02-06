@@ -9,12 +9,16 @@
 
 TM1637 tm1637(6, 7);
 
-const int BLUE_PIN = 2;
-const int WHITE_PIN = 3;
-const int RED_PIN = 4;
-const int GREEN_PIN = 5;
+const int BUTTON_BLUE_PIN = 2;
+const int BUTTON_WHITE_PIN = 3;
+const int BUTTON_RED_PIN = 4;
+const int BUTTON_GREEN_PIN = 5;
+
 const int BUZZER_PIN = 11;
-ChainableLED leds(8, 9, NUM_LEDS);
+
+const int LED_CLK_PIN = 8;
+const int LED_DATA_PIN = 9;
+ChainableLED leds(LED_CLK_PIN, LED_DATA_PIN, NUM_LEDS);
 
 int goodCombination[4] = {1, 2, 3, 4};
 int secretCode[4] = {0, 0, 0, 0};
@@ -33,16 +37,16 @@ void codeVerification();
 void waitingRelease(int pin);
 
 void setupSecurity() {
-  pinMode(BLUE_PIN, INPUT_PULLUP);
-  pinMode(WHITE_PIN, INPUT_PULLUP);
-  pinMode(GREEN_PIN, INPUT_PULLUP);
-  pinMode(RED_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_BLUE_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_WHITE_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_GREEN_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_RED_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
   
   tm1637.init();
   tm1637.set(BRIGHT_TYPICAL);
   tm1637.clearDisplay();
-  leds.setColorHSB(0, 0.0, 0.0, 0.0);
+  setLedColorHSB(0.65, 1.0, 0.2);
 }
 
 void resetAlarmState() {
@@ -55,7 +59,7 @@ void resetAlarmState() {
 
 // --- LOGIQUE ---
 bool runSecurityLogic() {
-  leds.setColorHSB(0, 0.04, 1.0, 0.2);
+  setLedColorHSB(0.04, 1.0, 0.2);
   if (millis() - LastTimeBlink > BLINKING_SPEED) {
     numberLight = !numberLight; 
     LastTimeBlink = millis();
@@ -69,23 +73,23 @@ bool runSecurityLogic() {
 
 // --- GESTION DES BOUTONS ---
 void handleButtons() {
-  if (digitalRead(BLUE_PIN) == LOW) {
+  if (digitalRead(BUTTON_BLUE_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
     secretCode[CursorPosition]++;
     if (secretCode[CursorPosition] > 9) secretCode[CursorPosition] = 0;
     resetBlinking();
-    waitingRelease(BLUE_PIN);
+    waitingRelease(BUTTON_BLUE_PIN);
   }
   
-  if (digitalRead(WHITE_PIN) == LOW) {
+  if (digitalRead(BUTTON_WHITE_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
     secretCode[CursorPosition]--;
     if (secretCode[CursorPosition] < 0) secretCode[CursorPosition] = 9;
     resetBlinking();
-    waitingRelease(WHITE_PIN);
+    waitingRelease(BUTTON_WHITE_PIN);
   }
   
-  if (digitalRead(GREEN_PIN) == LOW) {
+  if (digitalRead(BUTTON_GREEN_PIN) == LOW) {
     if (CursorPosition < 3) {
       playPressBeep(BUZZER_PIN);
       CursorPosition++;
@@ -93,16 +97,16 @@ void handleButtons() {
     } else {
       codeVerification();
     }
-    waitingRelease(GREEN_PIN);
+    waitingRelease(BUTTON_GREEN_PIN);
   }
   
-  if (digitalRead(RED_PIN) == LOW) {
+  if (digitalRead(BUTTON_RED_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
     if (CursorPosition > 0) {
       CursorPosition--;
     }
     resetBlinking();
-    waitingRelease(RED_PIN);
+    waitingRelease(BUTTON_RED_PIN);
   }
 }
 
@@ -150,7 +154,12 @@ void codeVerification() {
 }
 
 void waitingRelease(int pin) {
+  // TODO: Do not block the entire system while waiting for button release !
   delay(50);
   while (digitalRead(pin) == LOW) {} 
   delay(50);
+}
+
+void setLedColorHSB(float hue, float saturation, float brightness) {
+  leds.setColorHSB(0, hue, saturation, brightness);
 }
