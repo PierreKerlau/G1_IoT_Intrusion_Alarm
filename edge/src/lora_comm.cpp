@@ -44,7 +44,7 @@ void setupLora() {
   Serial.println(F("[LoRa] Module initialisé en mode TEST."));
 }
 
-bool waitRespAny(const char *expectedResponse1, const char *expectedResponse2, uint32_t timeoutMs) {
+bool waitRespAny(const char* expectedResponse1, const char* expectedResponse2, uint32_t timeoutMs) {
   uint32_t start = millis();
   String resp;
 
@@ -59,8 +59,7 @@ bool waitRespAny(const char *expectedResponse1, const char *expectedResponse2, u
         return false;
       }
 
-      if ((expectedResponse1 && resp.indexOf(expectedResponse1) >= 0)
-          || (expectedResponse2 && resp.indexOf(expectedResponse2) >= 0)) {
+      if ((expectedResponse1 && resp.indexOf(expectedResponse1) >= 0) || (expectedResponse2 && resp.indexOf(expectedResponse2) >= 0)) {
         Serial.print(F("<< "));
         Serial.println(resp);
         return true;

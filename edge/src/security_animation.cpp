@@ -1,7 +1,8 @@
 #include <Arduino.h>
-#include <TM1637.h>
 #include <ChainableLED.h>
+#include <TM1637.h>
 #include <security_animation.h>
+
 
 void playSuccessAnimation(TM1637& display, ChainableLED& leds, int secretCode[4]) {
   leds.setColorHSB(0, 0.30, 1.0, 0.5); // TODO: Define colors as constants or enums, this is "blue" for now
@@ -29,4 +30,3 @@ void playErrorAnimation(TM1637& display, ChainableLED& leds) {
     delay(100);
   }
 }
-

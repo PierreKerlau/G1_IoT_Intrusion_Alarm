@@ -42,7 +42,7 @@ void setupSecurity() {
   pinMode(BUTTON_GREEN_PIN, INPUT_PULLUP);
   pinMode(BUTTON_RED_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
-  
+
   tm1637.init();
   tm1637.set(BRIGHT_TYPICAL);
   tm1637.clearDisplay();
@@ -61,11 +61,11 @@ void resetAlarmState() {
 bool runSecurityLogic() {
   setLedColorHSB(0.04, 1.0, 0.2);
   if (millis() - LastTimeBlink > BLINKING_SPEED) {
-    numberLight = !numberLight; 
+    numberLight = !numberLight;
     LastTimeBlink = millis();
     updateScreen();
   }
-  
+
   handleButtons();
 
   return systemDisarmed;
@@ -80,7 +80,7 @@ void handleButtons() {
     resetBlinking();
     waitingRelease(BUTTON_BLUE_PIN);
   }
-  
+
   if (digitalRead(BUTTON_WHITE_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
     secretCode[CursorPosition]--;
@@ -88,7 +88,7 @@ void handleButtons() {
     resetBlinking();
     waitingRelease(BUTTON_WHITE_PIN);
   }
-  
+
   if (digitalRead(BUTTON_GREEN_PIN) == LOW) {
     if (CursorPosition < 3) {
       playPressBeep(BUZZER_PIN);
@@ -99,7 +99,7 @@ void handleButtons() {
     }
     waitingRelease(BUTTON_GREEN_PIN);
   }
-  
+
   if (digitalRead(BUTTON_RED_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
     if (CursorPosition > 0) {
@@ -115,7 +115,7 @@ void updateScreen() {
   for (int i = 0; i < 4; i++) {
     if (i == CursorPosition && numberLight == false) {
       tm1637.display(i, 0x7f);
-    } 
+    }
     else {
       tm1637.display(i, secretCode[i]);
     }
@@ -134,7 +134,7 @@ void codeVerification() {
   for(int i=0; i<4; i++) {
     if (secretCode[i] != goodCombination[i]) isTrue = false;
   }
-  
+
   CursorPosition = 0;
   secretCode[0]=0; secretCode[1]=0; secretCode[2]=0; secretCode[3]=0;
 
@@ -156,7 +156,7 @@ void codeVerification() {
 void waitingRelease(int pin) {
   // TODO: Do not block the entire system while waiting for button release !
   delay(50);
-  while (digitalRead(pin) == LOW) {} 
+  while (digitalRead(pin) == LOW) {}
   delay(50);
 }
 

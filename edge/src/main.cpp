@@ -1,8 +1,8 @@
-#include <Arduino.h>
-#include "security_code.h"
-#include "motion_detector.h"
 #include "lora_comm.h"
+#include "motion_detector.h"
 #include "rtc.h"
+#include "security_code.h"
+#include <Arduino.h>
 
 bool isAlarmActive = false;
 bool lastTimeInRange = false;
@@ -31,7 +31,6 @@ void loop() {
         setLedColorHSB(0.65, 1.0, 0.2); // TODO: Define colors as constants or enums, this is "blue" for now
       }
     }
-
 
     if (isTimeInRanges()) {
       Serial.print(getTimeString());
