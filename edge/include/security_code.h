@@ -3,7 +3,8 @@
 
 void setupSecurity();
 bool runSecurityLogic();
-void resetAlarmState();
+void startAlarmState();
 void setLedColorHSB(float hue, float saturation, float brightness);
+bool isWaitingForRelease();
 
 #endif // SECURITY_CODE_H

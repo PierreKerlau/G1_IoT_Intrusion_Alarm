@@ -10,7 +10,7 @@ void setupRTC() {
 
   // The time only needs to be set once, or after a power loss
   rtc.settime(
-      40, // seconds
+      50, // seconds
       59, // minutes
       17, // hours
       6,  // day

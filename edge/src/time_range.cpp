@@ -124,7 +124,4 @@ void TimeRangeChecker::setTimeRanges(const TimeRangeRule* rules, size_t ruleCoun
   Serial.print(" - Month mask: ");
   Serial.println(timeRanges[0].monthMask, BIN);
   Serial.println();
-
-  Serial.print(sizeof(TimeRangeRule));
-  Serial.println(" bytes per rule");
 }

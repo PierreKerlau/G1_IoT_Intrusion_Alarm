@@ -6,4 +6,5 @@ ColumnLimit: 0
 AllowShortBlocksOnASingleLine: Empty
 AlignConsecutiveAssignments: Consecutive
 AlignConsecutiveDeclarations: Consecutive
+AlignConsecutiveMacros: Consecutive
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse

@@ -36,16 +36,19 @@ const int     BLINKING_SPEED = 400;  // Blinking speed in milliseconds
 const int maxTries = 3; // Maximum number of tries before triggering the alarm
 int       tries    = 0; // Current number of tries
 
-const unsigned long maxDisarmTime   = 30000; // Maximum time to disarm the system in milliseconds (30 seconds)
-unsigned long       disarmStartTime = 0;     // Time when the disarm attempt started
+unsigned long       alarmStartTime  = 0;         // Time when the alarm was first triggered
+const unsigned long MAX_DISARM_TIME = 15 * 1000; // Maximum time to disarm the system in milliseconds
+const unsigned long ALARM_TIMEOUT   = 60 * 1000; // Maximum time for an alarm in milliseconds
 
 bool systemDisarmed = false;
 
+int releasePin = -1; // Pin to check for release after button press, -1 if not waiting for any button release
+
+void clearScreen();
 void updateScreen();
 void handleButtons();
 void resetBlinking();
 void codeVerification();
-void waitForRelease(int pin);
 
 void setupSecurity() {
   pinMode(BUTTON_BLUE_PIN, INPUT_PULLUP);
@@ -60,22 +63,34 @@ void setupSecurity() {
   setLedColorHSB(0.65, 1.0, 0.2); // TODO: Define colors as constants or enums, this is "blue" for now
 }
 
-void resetAlarmState() {
+/**
+ * Start the alarm and allow the user to try to disarm it by entering the correct code.
+ * The user has a limited time and number of tries to disarm the system before the alarm is triggered.
+ */
+void startAlarmState() {
   systemDisarmed = false;
   cursorPosition = 0;
   // TODO: Make secret code random or configurable
   currentCombination = {0, 0, 0, 0};
-  resetBlinking();
-  disarmStartTime = millis(); // Start the disarm timer
-  tries           = 0;        // Reset tries count
+  alarmStartTime     = millis(); // Start the disarm timer
+  tries              = 0;        // Reset tries count
+
+  resetBlinking();             // Reset blinking effect and update the screen to show the initial state
+  playMotionSound(BUZZER_PIN); // Play motion detected sound when alarm state starts
 }
 
 // --- LOGIQUE ---
+/**
+ * Main logic function for the security system. It checks if the system is disarmed, if the maximum number of tries or disarm time has been exceeded, and handles user input for disarming the system.
+ * @return true if the system is disarmed, false if the alarm was triggered
+ */
 bool runSecurityLogic() {
   if (systemDisarmed) {
     return true;
-  } else if ((tries >= maxTries || (millis() - disarmStartTime) > maxDisarmTime) && !systemDisarmed) {
+  } else if ((tries >= maxTries || (millis() - alarmStartTime) > MAX_DISARM_TIME) && !systemDisarmed) {
     // Too late to disarm, alarm was triggered
+    // TODO: play alarm sound and animation + send alert via LoRaWAN
+    clearScreen();
     return false;
   } else {                          // Allow user to keep trying to disarm the system
     setLedColorHSB(0.04, 1.0, 0.2); // TODO: Define colors as constants or enums, this is "orange" for now
@@ -100,7 +115,7 @@ void handleButtons() {
     currentCombination[cursorPosition]++;
     if (currentCombination[cursorPosition] > 9) currentCombination[cursorPosition] = 0;
     resetBlinking();
-    waitForRelease(BUTTON_BLUE_PIN);
+    releasePin = BUTTON_BLUE_PIN;
   }
 
   // Button - / Down (White)
@@ -109,7 +124,7 @@ void handleButtons() {
     currentCombination[cursorPosition]--;
     if (currentCombination[cursorPosition] < 0) currentCombination[cursorPosition] = 9;
     resetBlinking();
-    waitForRelease(BUTTON_WHITE_PIN);
+    releasePin = BUTTON_WHITE_PIN;
   }
 
   // Button OK (Green)
@@ -121,7 +136,7 @@ void handleButtons() {
     } else {
       codeVerification();
     }
-    waitForRelease(BUTTON_GREEN_PIN);
+    releasePin = BUTTON_GREEN_PIN;
   }
 
   // Button Previous (Red)
@@ -131,15 +146,19 @@ void handleButtons() {
       cursorPosition--;
     }
     resetBlinking();
-    waitForRelease(BUTTON_RED_PIN);
+    releasePin = BUTTON_RED_PIN;
   }
 }
 
 // --- AFFICHAGE ---
+void clearScreen() {
+  tm1637.clearDisplay();
+}
+
 void updateScreen() {
   for (int i = 0; i < 4; i++) {
     if (i == cursorPosition && numberLight == false) {
-      tm1637.display(i, 0x7f);
+      tm1637.display(i, 0x7f); // 0x7f is the code for displaying nothing (blank) on TM1637
     } else {
       tm1637.display(i, currentCombination[i]);
     }
@@ -176,24 +195,24 @@ void codeVerification() {
   } else {
     tries++;
     Serial.println("WRONG CODE - ATTEMPT " + String(tries) + " of " + String(maxTries));
-    if (tries >= maxTries) {
+    if (tries >= maxTries) { // Final attempt failed, trigger alarm
       Serial.println("DISARMING FAILED - TOO MANY ATTEMPTS");
-      playWrongCombinationSound(BUZZER_PIN);
+      playAlarmSound(BUZZER_PIN);
       playErrorAnimation(tm1637, leds);
       resetBlinking();
-    } else {
-      playAlarmSound(BUZZER_PIN);
+    } else { // Not the final attempt
+      playWrongCombinationSound(BUZZER_PIN);
       playErrorAnimation(tm1637, leds);
       resetBlinking();
     }
   }
 }
 
-void waitForRelease(int pin) {
-  // TODO: Do not block the entire system while waiting for button release !
-  delay(50);
-  while (digitalRead(pin) == LOW) {}
-  delay(50);
+bool isWaitingForRelease() {
+  if (releasePin != -1 && digitalRead(releasePin) == HIGH) {
+    releasePin = -1; // Reset release pin after successful release
+  }
+  return releasePin != -1;
 }
 
 void setLedColorHSB(float hue, float saturation, float brightness) {
