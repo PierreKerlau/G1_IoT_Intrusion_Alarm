@@ -1,4 +1,4 @@
-#ifndef TIME_RANGE_H // Import once
+#ifndef TIME_RANGE_H
 #define TIME_RANGE_H
 
 #include "iarduino_RTC.h"

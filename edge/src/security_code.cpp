@@ -1,11 +1,10 @@
 #include <Arduino.h>
 #include <ChainableLED.h>
 #include <TM1637.h>
+#include <array>
 #include <security_animation.h>
 #include <security_audio.h>
 #include <security_code.h>
-
-#define NUM_LEDS 1
 
 TM1637 tm1637(6, 7);
 
@@ -16,17 +15,29 @@ const int BUTTON_GREEN_PIN = 5;
 
 const int BUZZER_PIN = 11;
 
+#define NUM_LEDS 1
 const int    LED_CLK_PIN  = 8;
 const int    LED_DATA_PIN = 9;
 ChainableLED leds(LED_CLK_PIN, LED_DATA_PIN, NUM_LEDS);
 
-int goodCombination[4] = {1, 2, 3, 4};
-int secretCode[4]      = {0, 0, 0, 0};
-int CursorPosition     = 0;
+// TODO: Retrieve the secret combination in EEPROM
+// TODO: If no combination is set in EEPROM, generate a random one at startup and display it for a few seconds before clearing the screen and starting the system
+// TODO: Add a way to change the secret combination from LoRaWAN
+// Combination and cursor position variables
+std::array<int, 4> currentCombination  = {0, 0, 0, 0}; // Current combination entered by the user (default to 0000)
+std::array<int, 4> expectedCombination = {1, 2, 3, 4}; // Correct combination to disarm the system (default to 1234)
+int                cursorPosition      = 0;            // Position of the cursor (0 to 3)
 
-unsigned long LastTimeBlink  = 0;
-bool          numberLight    = true;
-const int     BLINKING_SPEED = 400;
+// Blinking effect variables
+unsigned long lastTimeBlink  = 0;
+bool          numberLight    = true; // Set to true to display the number, false to hide it (display nothing) for blinking effect
+const int     BLINKING_SPEED = 400;  // Blinking speed in milliseconds
+
+const int maxTries = 3; // Maximum number of tries before triggering the alarm
+int       tries    = 0; // Current number of tries
+
+const unsigned long maxDisarmTime   = 30000; // Maximum time to disarm the system in milliseconds (30 seconds)
+unsigned long       disarmStartTime = 0;     // Time when the disarm attempt started
 
 bool systemDisarmed = false;
 
@@ -34,7 +45,7 @@ void updateScreen();
 void handleButtons();
 void resetBlinking();
 void codeVerification();
-void waitingRelease(int pin);
+void waitForRelease(int pin);
 
 void setupSecurity() {
   pinMode(BUTTON_BLUE_PIN, INPUT_PULLUP);
@@ -46,89 +57,98 @@ void setupSecurity() {
   tm1637.init();
   tm1637.set(BRIGHT_TYPICAL);
   tm1637.clearDisplay();
-  setLedColorHSB(0.65, 1.0, 0.2);
+  setLedColorHSB(0.65, 1.0, 0.2); // TODO: Define colors as constants or enums, this is "blue" for now
 }
 
 void resetAlarmState() {
   systemDisarmed = false;
-  CursorPosition = 0;
+  cursorPosition = 0;
   // TODO: Make secret code random or configurable
-  secretCode[0] = 0;
-  secretCode[1] = 0;
-  secretCode[2] = 0;
-  secretCode[3] = 0;
+  currentCombination = {0, 0, 0, 0};
   resetBlinking();
+  disarmStartTime = millis(); // Start the disarm timer
+  tries           = 0;        // Reset tries count
 }
 
 // --- LOGIQUE ---
 bool runSecurityLogic() {
-  setLedColorHSB(0.04, 1.0, 0.2);
-  if (millis() - LastTimeBlink > BLINKING_SPEED) {
-    numberLight   = !numberLight;
-    LastTimeBlink = millis();
-    updateScreen();
+  if (systemDisarmed) {
+    return true;
+  } else if ((tries >= maxTries || (millis() - disarmStartTime) > maxDisarmTime) && !systemDisarmed) {
+    // Too late to disarm, alarm was triggered
+    return false;
+  } else {                          // Allow user to keep trying to disarm the system
+    setLedColorHSB(0.04, 1.0, 0.2); // TODO: Define colors as constants or enums, this is "orange" for now
+
+    if (millis() - lastTimeBlink > BLINKING_SPEED) { // Handle blinking effect for the current digit
+      numberLight   = !numberLight;
+      lastTimeBlink = millis();
+      updateScreen();
+    }
+
+    handleButtons();
+
+    return systemDisarmed;
   }
-
-  handleButtons();
-
-  return systemDisarmed;
 }
 
 // --- GESTION DES BOUTONS ---
 void handleButtons() {
+  // Button + / Up (Blue)
   if (digitalRead(BUTTON_BLUE_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
-    secretCode[CursorPosition]++;
-    if (secretCode[CursorPosition] > 9)
-      secretCode[CursorPosition] = 0;
+    currentCombination[cursorPosition]++;
+    if (currentCombination[cursorPosition] > 9) currentCombination[cursorPosition] = 0;
     resetBlinking();
-    waitingRelease(BUTTON_BLUE_PIN);
+    waitForRelease(BUTTON_BLUE_PIN);
   }
 
+  // Button - / Down (White)
   if (digitalRead(BUTTON_WHITE_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
-    secretCode[CursorPosition]--;
-    if (secretCode[CursorPosition] < 0)
-      secretCode[CursorPosition] = 9;
+    currentCombination[cursorPosition]--;
+    if (currentCombination[cursorPosition] < 0) currentCombination[cursorPosition] = 9;
     resetBlinking();
-    waitingRelease(BUTTON_WHITE_PIN);
+    waitForRelease(BUTTON_WHITE_PIN);
   }
 
+  // Button OK (Green)
   if (digitalRead(BUTTON_GREEN_PIN) == LOW) {
-    if (CursorPosition < 3) {
+    if (cursorPosition < 3) {
       playPressBeep(BUZZER_PIN);
-      CursorPosition++;
+      cursorPosition++;
       resetBlinking();
     } else {
       codeVerification();
     }
-    waitingRelease(BUTTON_GREEN_PIN);
+    waitForRelease(BUTTON_GREEN_PIN);
   }
 
+  // Button Previous (Red)
   if (digitalRead(BUTTON_RED_PIN) == LOW) {
     playPressBeep(BUZZER_PIN);
-    if (CursorPosition > 0) {
-      CursorPosition--;
+    if (cursorPosition > 0) {
+      cursorPosition--;
     }
     resetBlinking();
-    waitingRelease(BUTTON_RED_PIN);
+    waitForRelease(BUTTON_RED_PIN);
   }
 }
 
 // --- AFFICHAGE ---
 void updateScreen() {
   for (int i = 0; i < 4; i++) {
-    if (i == CursorPosition && numberLight == false) {
+    if (i == cursorPosition && numberLight == false) {
       tm1637.display(i, 0x7f);
     } else {
-      tm1637.display(i, secretCode[i]);
+      tm1637.display(i, currentCombination[i]);
     }
   }
 }
 
 void resetBlinking() {
   numberLight   = true;
-  LastTimeBlink = millis();
+  lastTimeBlink = millis();
   updateScreen();
 }
 
@@ -136,32 +156,40 @@ void resetBlinking() {
 void codeVerification() {
   bool isTrue = true;
   for (int i = 0; i < 4; i++) {
-    if (secretCode[i] != goodCombination[i])
+    if (currentCombination[i] != expectedCombination[i])
       isTrue = false;
   }
 
-  CursorPosition = 0;
-  secretCode[0]  = 0;
-  secretCode[1]  = 0;
-  secretCode[2]  = 0;
-  secretCode[3]  = 0;
+  cursorPosition        = 0;
+  currentCombination[0] = 0;
+  currentCombination[1] = 0;
+  currentCombination[2] = 0;
+  currentCombination[3] = 0;
 
   if (isTrue) {
-    Serial.println("CODE CORRECT");
+    Serial.println("CORRECT CODE");
     playGoodCombinationSound(BUZZER_PIN);
-    playSuccessAnimation(tm1637, leds, secretCode);
+    playSuccessAnimation(tm1637, leds, currentCombination);
 
     systemDisarmed = true;
     tm1637.clearDisplay();
   } else {
-    Serial.println("CODE FAUX");
-    playWrongCombinationSound(BUZZER_PIN);
-    playErrorAnimation(tm1637, leds);
-    resetBlinking();
+    tries++;
+    Serial.println("WRONG CODE - ATTEMPT " + String(tries) + " of " + String(maxTries));
+    if (tries >= maxTries) {
+      Serial.println("DISARMING FAILED - TOO MANY ATTEMPTS");
+      playWrongCombinationSound(BUZZER_PIN);
+      playErrorAnimation(tm1637, leds);
+      resetBlinking();
+    } else {
+      playAlarmSound(BUZZER_PIN);
+      playErrorAnimation(tm1637, leds);
+      resetBlinking();
+    }
   }
 }
 
-void waitingRelease(int pin) {
+void waitForRelease(int pin) {
   // TODO: Do not block the entire system while waiting for button release !
   delay(50);
   while (digitalRead(pin) == LOW) {}

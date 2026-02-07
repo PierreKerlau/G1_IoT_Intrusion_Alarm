@@ -4,4 +4,4 @@
 void setupMotion();
 bool checkMotion();
 
-#endif
+#endif // MOTION_DETECT_H

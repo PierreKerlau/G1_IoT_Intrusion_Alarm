@@ -24,4 +24,4 @@ bool waitRespAny(const char* expectedResponse1, const char* expectedResponse2, u
 
 void sendPayload(const LoraPayload& pkt);
 
-#endif
+#endif // LORA_COMM_H

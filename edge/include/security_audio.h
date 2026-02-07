@@ -4,5 +4,6 @@
 void playPressBeep(int buzzerPin);
 void playGoodCombinationSound(int buzzerPin);
 void playWrongCombinationSound(int buzzerPin);
+void playAlarmSound(int buzzerPin);
 
-#endif
+#endif // SECURITY_AUDIO_H
