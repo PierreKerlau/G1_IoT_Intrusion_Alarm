@@ -1,14 +1,14 @@
-#include "lora_comm.h"
 #include "security_code.h"
 #include <Arduino.h>
 
-#define PRINT_TIME_IN_LOOP                // Should print the time
-#define PRINT_TIME_INTERVAL          1000 // Interval for printing the time in milliseconds
-#define HEARTBEAT_TIME_INTERVAL      1000 // Interval for the LoRaWAN heartbeat in milliseconds
-#define SECURITY_LOGIC_TIME_INTERVAL 100  // Interval for running the security logic in milliseconds
+#define PRINT_TIME_IN_LOOP                    // Should print the time
+#define PRINT_TIME_INTERVAL          1000     // Interval for printing the time in milliseconds
+#define HEARTBEAT_TIME_INTERVAL      6 * 1000 // Interval for the LoRaWAN heartbeat in milliseconds
+#define SECURITY_LOGIC_TIME_INTERVAL 100      // Interval for running the security logic in milliseconds
 
 unsigned long lastSecurityLogicTime = 0;
 unsigned long lastTimePrint         = 0;
+unsigned long lastTimeHeartbeat     = 0;
 
 /* TODO
 - Add LoRaWAN messages for state changes, especially for TRIGGERED, DISARMED and FAILED_DISARM states
@@ -30,7 +30,7 @@ void setup() {
     delay(100); // Wait for serial port to connect.
   }
 
-  delay(4000); // DEBUG: Wait a moment before starting the system
+  delay(3000); // DEBUG: Wait a moment before starting the system
 
   setupSecurity();
   setupLora();
@@ -42,7 +42,7 @@ void setup() {
 void loop() {
   AlarmState currentAlarmState = getAlarmState();
 
-  // Print time every minute
+  // Print time and alarm state at regular intervals for debugging purposes
 #ifdef PRINT_TIME_IN_LOOP
   if (millis() - lastTimePrint > PRINT_TIME_INTERVAL) {
     // loraSendMotionState(isAlarmActive);
@@ -56,48 +56,9 @@ void loop() {
     runSecurityLogic();
   }
 
-  // Send heartbeat
-  // if (millis() - lastTimePrint > HEARTBEAT_TIME_INTERVAL) {
-  //   // loraSendMotionState(isAlarmActive);
-  //   lastTimePrint = millis();
-  //   Serial.println(getTimeString());
-  // }
-
-  // if (!isAlarmActive) { // No alarm triggered, check for time window and motion
-  //   // bool monitoringTime = isMonitoringTime();
-  //   // if (monitoringTime != lastIsMonitoringTime) { // Time range status just changed
-  //   //   Serial.print("Time range status changed: ");
-  //   //   Serial.println(monitoringTime ? "IN RANGE" : "OUT OF RANGE");
-  //   //   lastIsMonitoringTime = monitoringTime;
-  //   //   if (monitoringTime) {
-  //   //     updateLedColor(0.04, 1.0, 0.2); // TODO: Define colors as constants or enums, this is "orange" for now
-  //   //   } else {
-  //   //     updateLedColor(0.65, 1.0, 0.2); // TODO: Define colors as constants or enums, this is "blue" for now
-  //   //   }
-  //   // }
-
-  //   if (monitoringTime) {
-  //     // Serial.print(getTimeString());
-  //     // Serial.println(" - Monitoring for motion");
-  //     if (checkMotion() == true) { // Motion detected, trigger alarm
-  //       loraSendMotionState(true);
-  //       startAlarmState();
-
-  //       isAlarmActive = true;
-  //     }
-  //   }
-  //   delay(100);
-  // } else { // Alarm is active, run security logic
-  //   // Only run security logic if we're not waiting for button release
-  //   if (!isWaitingForRelease()) {
-  //     bool disarmed = runSecurityLogic();
-
-  //     if (disarmed == true) {
-  //       isAlarmActive = false;
-  //       loraSendMotionState(false);
-  //     }
-  //   } else {
-  //     Serial.println("Waiting for button release...");
-  //   }
-  // }
+  // Send heartbeat message at regular intervals to indicate that the system is alive, with the current alarm state included in the payload data
+  if (millis() - lastTimeHeartbeat > HEARTBEAT_TIME_INTERVAL) {
+    lastTimeHeartbeat = millis();
+    loraSendHeartbeat(getAlarmState());
+  }
 }

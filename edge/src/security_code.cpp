@@ -81,16 +81,17 @@ void setupSecurity() {
       Serial.print(": ");
       Serial.println(expectedCombination[i]);
       validEepromData = false;
+      break;
     }
   }
-  if (eepromData.timeRangeRulesCount == 0) {
+  if (validEepromData && eepromData.timeRangeRulesCount == 0) {
     Serial.print("Error: Invalid time range rules count retrieved from EEPROM: ");
     Serial.println(eepromData.timeRangeRulesCount);
     validEepromData = false;
   }
 
   if (!validEepromData) {
-    Serial.println("Error: Invalid data retrieved from EEPROM. Using default configuration.");
+    Serial.println("Error: Invalid data retrieved from EEPROM. Switching to CONFIGURATION state.");
     setupRTC(nullptr, 0); // Setup RTC with no time range rules, effectively disabling time-based monitoring until valid configuration is set
     setAlarmState(AlarmState::CONFIGURATION);
   } else { // Valid data retrieved from EEPROM, proceed with normal setup
@@ -111,11 +112,25 @@ void setupSecurity() {
 }
 
 // --- MAIN LOGIC ---
+
 /**
- * Main logic function for the security system. It checks if the system is disarmed, if the maximum number of tries or disarm time has been exceeded, and handles user input for disarming the system.
- * @return true if the system is disarmed, false if the alarm was triggered
+ * Main logic function for the security system. Its behavior depends on the current state of the alarm system:
+ * - If the system is INACTIVE,      it checks if the current time is within the monitoring time ranges and transitions to MONITORING if it is.
+ * - If the system is MONITORING,    it checks if the current time is still within the monitoring time ranges and transitions back to INACTIVE if it isn't. It also checks for motion detection and transitions to TRIGGERED if motion is detected.
+ * - If the system is TRIGGERED,     it checks if the user has exceeded the maximum number of tries or the maximum disarm time and transitions to FAILED_DISARM if either condition is met. It also handles user input for disarming the system.
+ * - If the system is DISARMED,      it plays a non-blocking success animation and checks if the system should be reset after a successful disarm.
+ * - If the system is FAILED_DISARM, it checks if the system should be reset after an alarm timeout.
+ * - If the system is CONFIGURATION, it will eventually handle configuration tasks (e.g., setting time, changing combination, etc.) which are not implemented yet.
+ * The function also listens for incoming LoRa payloads and processes them if received, allowing for remote commands and configuration updates via LoRaWAN.
+ * @return The current state of the alarm system after running the logic
  */
 AlarmState runSecurityLogic() {
+  LoraPayload pkt = listenForPayload();
+  if (pkt.id != 0) { // Valid packet received, handle it
+    Serial.println("Valid LoRa packet received");
+    // TODO: Process received LoRa commands/configuration updates
+  }
+
   if (alarmState == AlarmState::INACTIVE) {
     if (isMonitoringTime()) {
       setAlarmState(AlarmState::MONITORING);

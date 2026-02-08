@@ -31,3 +31,7 @@ String getTimeString() {
 bool isMonitoringTime() {
   return timeRangeChecker.isMonitoringTime(rtc);
 }
+
+uint32_t getCurrentUnixTime() {
+  return rtc.gettimeUnix();
+}
