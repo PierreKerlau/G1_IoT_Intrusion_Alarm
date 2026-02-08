@@ -35,8 +35,7 @@ void setup() {
   setupSecurity();
   setupLora();
 
-  Serial.println("System ready.");
-  loraSendMotionState(false);
+  Serial.println("System ready!\n");
 }
 
 void loop() {

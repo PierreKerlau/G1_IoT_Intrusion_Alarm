@@ -13,6 +13,10 @@ String payloadToHex(const LoraPayload& pkt);
 bool   waitRespAny(const char* expectedResponse1, const char* expectedResponse2, uint32_t timeoutMs);
 void   sendPayload(const LoraPayload& pkt);
 
+uint32_t parseU32BE(const String& s, size_t offset);
+bool     hexToPayloadBE(const String& hex, LoraPayload& pkt);
+void     appendHexByte(String& out, uint8_t b);
+
 void setupLora() {
   Serial1.begin(9600);
   delay(500);
@@ -48,20 +52,26 @@ LoraPayload listenForPayload() {
   if (Serial1.available()) {
     String line = Serial1.readStringUntil('\n');
     line.trim();
-    Serial.println(F("[LoRa] Raw Payload received:"));
-    Serial.println(line);
 
-    if (line.startsWith("+TEST:RXLRPKT,")) {
-      String hex = line.substring(strlen("+TEST:RXLRPKT,"));
-      if (hex.length() == sizeof(LoraPayload) * 2) {
+    if (line.startsWith("+TEST: RX")) {
+      Serial.println(F("[LoRa] Raw Payload received:"));
+      Serial.println(line);
+
+      String hex;
+
+      // Parse format: +TEST: RX,"<hex_data>"
+      int q1 = line.indexOf('"');
+      int q2 = line.indexOf('"', q1 + 1);
+      if (q1 >= 0 && q2 > q1) {
+        hex = line.substring(q1 + 1, q2);
+      } else {
+        return LoraPayload{}; // Invalid data
+      }
+
+      if (hex.length() == sizeof(LoraPayload) * 2) { // 2 hex characters = 1 byte
         LoraPayload pkt;
-        for (size_t i = 0; i < sizeof(LoraPayload); i++) {
-          String byteStr = hex.substring(i * 2, i * 2 + 2);
-          pkt.id         = strtoul(byteStr.c_str(), nullptr, 16);
-          pkt.seq        = strtoul(byteStr.c_str(), nullptr, 16);
-          pkt.ts         = strtoul(byteStr.c_str(), nullptr, 16);
-          pkt.type       = static_cast<PayloadType>(strtoul(byteStr.c_str(), nullptr, 16));
-          pkt.data       = strtoul(byteStr.c_str(), nullptr, 16);
+        if (!hexToPayloadBE(hex, pkt)) {
+          return LoraPayload{}; // Invalid data
         }
         Serial.println(F("[LoRa] Payload received:"));
         Serial.print("  ID: ");
@@ -75,6 +85,8 @@ LoraPayload listenForPayload() {
         Serial.print("  Data: ");
         Serial.println(pkt.data, HEX);
         return pkt;
+      } else {
+        Serial.println("[LoRa] Invalid payload length: " + String(hex.length()) + " (expected " + String(sizeof(LoraPayload) * 2) + ")");
       }
     }
   }
@@ -82,7 +94,10 @@ LoraPayload listenForPayload() {
 }
 
 /**
- * Blocks until a response containing either expectedResponse1 or expectedResponse2 is received, or until timeoutMs is reached.
+ * Blocks until a response containing either of the two expected responses is received, or until timeoutMs is reached.
+ * @param expectedResponse1 The first expected response string to wait for.
+ * @param expectedResponse2 The second expected response string to wait for.
+ * @param timeoutMs The timeout in milliseconds to wait for a response.
  * @return true if a response containing expectedResponse1 or expectedResponse2 is received, false if timeout is reached or if an error response is received.
  */
 bool waitRespAny(const char* expectedResponse1, const char* expectedResponse2, uint32_t timeoutMs) {
@@ -115,6 +130,10 @@ bool waitRespAny(const char* expectedResponse1, const char* expectedResponse2, u
   return false;
 }
 
+/**
+ * Send a motion sensor detection packet.
+ * @param state The current state of the motion sensor.
+ */
 void loraSendMotionState(bool state) {
   if (!lora_working) {
     Serial.println(F("[LoRa] Module not operational, send cancelled."));
@@ -133,6 +152,10 @@ void loraSendMotionState(bool state) {
   sendPayload(pkt);
 }
 
+/**
+ * Send a heartbeat payload through LoRa.
+ * @param state The current state of the alarm.
+ */
 void loraSendHeartbeat(AlarmState state) {
   if (!lora_working) {
     Serial.println(F("[LoRa] Module not operational, send cancelled."));
@@ -151,6 +174,10 @@ void loraSendHeartbeat(AlarmState state) {
   sendPayload(pkt);
 }
 
+/**
+ * Send the given payload through LoRa as hex data
+ * @param pkt The payload to send.
+ */
 void sendPayload(const LoraPayload& pkt) {
   String hex = payloadToHex(pkt);
 
@@ -160,18 +187,82 @@ void sendPayload(const LoraPayload& pkt) {
   Serial.println(cmd);
 
   Serial1.println(cmd);
+
+  // After sending a message, we have to manually switch back to listening
+  delay(300);
+  Serial1.println("AT+TEST=RXLRPKT");
 }
 
 String payloadToHex(const LoraPayload& pkt) {
-  const uint8_t* ptr = reinterpret_cast<const uint8_t*>(&pkt);
-  String         hex;
+  String hex;
   hex.reserve(sizeof(LoraPayload) * 2);
 
-  for (size_t i = 0; i < sizeof(LoraPayload); i++) {
-    uint8_t     b        = ptr[i];
-    const char* hexChars = "0123456789ABCDEF";
-    hex += hexChars[b >> 4];
-    hex += hexChars[b & 0x0F];
-  }
+  appendHexByte(hex, pkt.id);
+  appendHexByte(hex, (uint8_t)((pkt.seq >> 24) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.seq >> 16) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.seq >> 8) & 0xFF));
+  appendHexByte(hex, (uint8_t)(pkt.seq & 0xFF));
+
+  appendHexByte(hex, (uint8_t)((pkt.ts >> 24) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.ts >> 16) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.ts >> 8) & 0xFF));
+  appendHexByte(hex, (uint8_t)(pkt.ts & 0xFF));
+
+  appendHexByte(hex, static_cast<uint8_t>(pkt.type));
+
+  appendHexByte(hex, (uint8_t)((pkt.data >> 24) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.data >> 16) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.data >> 8) & 0xFF));
+  appendHexByte(hex, (uint8_t)(pkt.data & 0xFF));
+
   return hex;
+}
+
+/**
+ * Append a single byte as two uppercase hex characters.
+ * @param out The output string to append to.
+ * @param b The byte to append as hex.
+ */
+void appendHexByte(String& out, uint8_t b) {
+  const char* hexChars = "0123456789ABCDEF";
+  out += hexChars[b >> 4];
+  out += hexChars[b & 0x0F];
+}
+
+/**
+ * Parse a 32-bit unsigned integer from big-endian hex (8 chars = 4 bytes).
+ * @param s The hex string to parse.
+ * @param offset The starting position in the string to parse from.
+ * @return The parsed 32-bit unsigned integer.
+ */
+uint32_t parseU32BE(const String& s, size_t offset) {
+  uint32_t value = 0;
+  for (size_t i = 0; i < 4; i++) {
+    String byteStr = s.substring(offset + i * 2, offset + i * 2 + 2);
+    value          = (value << 8) | (uint32_t)strtoul(byteStr.c_str(), nullptr, 16);
+  }
+  return value;
+}
+
+/**
+ * Convert a hex payload string into a LoraPayload using big-endian field order.
+ * @param hex The hex string representing the payload.
+ * @param pkt The LoraPayload object to populate.
+ * @return true if the payload was successfully parsed, false otherwise.
+ */
+bool hexToPayloadBE(const String& hex, LoraPayload& pkt) {
+  if (hex.length() < (sizeof(LoraPayload) * 2)) return false;
+
+  size_t offset = 0;
+  pkt.id        = (uint8_t)strtoul(hex.substring(offset, offset + 2).c_str(), nullptr, 16);
+  offset += 2;
+  pkt.seq = parseU32BE(hex, offset);
+  offset += 8;
+  pkt.ts = parseU32BE(hex, offset);
+  offset += 8;
+  pkt.type = static_cast<PayloadType>(strtoul(hex.substring(offset, offset + 2).c_str(), nullptr, 16));
+  offset += 2;
+  pkt.data = parseU32BE(hex, offset);
+
+  return true;
 }

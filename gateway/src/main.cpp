@@ -64,6 +64,8 @@ void loop() {
   //     String hex      = payloadToHex(pkt);
   //     String loraLine = "AT+TEST=TXLRPKT,\"" + hex + "\"";
   //     loraSerial.println(loraLine);
+  //     delay(300);
+  //     loraSerial.println("AT+TEST=RXLRPKT");
   //   }
 }
 
@@ -101,6 +103,8 @@ void listenSerial() {
     String loraLine = serialToLora(serialLine);
     if (loraLine.length() > 0) {
       loraSerial.println(loraLine);
+      delay(300);
+      loraSerial.println("AT+TEST=RXLRPKT");
     }
   }
 }
@@ -132,10 +136,6 @@ String loraToSerial(const String& loraLine) {
         }
       }
     }
-  } else { // Unrecognized response, print for debugging
-#ifdef DEBUG_SERIAL_PRINT
-    Serial.println(String("Unrecognized LoRa response: ") + loraLine);
-#endif // DEBUG_SERIAL_PRINT
   }
 
   return json;
@@ -167,12 +167,27 @@ String serialToLora(const String& serialLine) {
 bool hexToPayload(const String& hex, LoraPayload& pkt) {
   if (hex.length() < (sizeof(LoraPayload) * 2)) return false;
 
-  uint8_t* ptr = (uint8_t*)&pkt;
+  // Parse a 32-bit unsigned integer from big-endian hex (8 chars = 4 bytes).
+  auto parseU32BE = [](const String& s, size_t offset) -> uint32_t {
+    uint32_t value = 0;
+    for (size_t i = 0; i < 4; i++) {
+      String byteStr = s.substring(offset + i * 2, offset + i * 2 + 2);
+      value          = (value << 8) | (uint32_t)strtoul(byteStr.c_str(), nullptr, 16);
+    }
+    return value;
+  };
 
-  for (size_t i = 0; i < sizeof(LoraPayload); i++) {
-    String byteStr = hex.substring(i * 2, i * 2 + 2);
-    ptr[i]         = (uint8_t)strtol(byteStr.c_str(), NULL, 16);
-  }
+  size_t offset = 0;
+  pkt.id        = (uint8_t)strtoul(hex.substring(offset, offset + 2).c_str(), nullptr, 16);
+  offset += 2;
+  pkt.seq = parseU32BE(hex, offset);
+  offset += 8;
+  pkt.ts = parseU32BE(hex, offset);
+  offset += 8;
+  pkt.type = static_cast<PayloadType>(strtoul(hex.substring(offset, offset + 2).c_str(), nullptr, 16));
+  offset += 2;
+  pkt.data = parseU32BE(hex, offset);
+
   return true;
 }
 
@@ -204,7 +219,7 @@ LoraPayload jsonToPayload(const String& json) {
       .id   = 0,
       .seq  = 0,
       .ts   = 0,
-      .type = PayloadType::CONFIGURATION, // Default to CONFIGURATION for safety, so that unrecognized payloads don't trigger unintended behavior
+      .type = PayloadType::UNKNOWN, // Default to UNKNOWN
       .data = 0,
   };
 
@@ -257,13 +272,33 @@ LoraPayload jsonToPayload(const String& json) {
  * @return A hex string representation of the payload's binary data.
  */
 String payloadToHex(const LoraPayload& pkt) {
-  const uint8_t* ptr = reinterpret_cast<const uint8_t*>(&pkt);
-  String         hex;
+  // Append a single byte as two uppercase hex characters.
+  auto appendHexByte = [](String& out, uint8_t b) {
+    const char* hexChars = "0123456789ABCDEF";
+    out += hexChars[b >> 4];
+    out += hexChars[b & 0x0F];
+  };
+
+  String hex;
   hex.reserve(sizeof(LoraPayload) * 2);
 
-  for (size_t i = 0; i < sizeof(LoraPayload); i++) {
-    if (ptr[i] < 16) hex += '0'; // Leading zero for single-digit hex values
-    hex += String(ptr[i], HEX);
-  }
+  appendHexByte(hex, pkt.id);
+  appendHexByte(hex, (uint8_t)((pkt.seq >> 24) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.seq >> 16) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.seq >> 8) & 0xFF));
+  appendHexByte(hex, (uint8_t)(pkt.seq & 0xFF));
+
+  appendHexByte(hex, (uint8_t)((pkt.ts >> 24) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.ts >> 16) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.ts >> 8) & 0xFF));
+  appendHexByte(hex, (uint8_t)(pkt.ts & 0xFF));
+
+  appendHexByte(hex, static_cast<uint8_t>(pkt.type));
+
+  appendHexByte(hex, (uint8_t)((pkt.data >> 24) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.data >> 16) & 0xFF));
+  appendHexByte(hex, (uint8_t)((pkt.data >> 8) & 0xFF));
+  appendHexByte(hex, (uint8_t)(pkt.data & 0xFF));
+
   return hex;
 }
