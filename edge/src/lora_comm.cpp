@@ -1,6 +1,4 @@
 #include "lora_comm.h"
-#include <Arduino.h>
-
 
 static const char* LORA_RFCFG_CMD = "AT+TEST=RFCFG,868.1,SF7,125,8,15,14,ON,OFF,OFF";
 

@@ -1,7 +1,4 @@
 #include "security_animation.h"
-#include <Arduino.h>
-#include <ChainableLED.h>
-#include <TM1637.h>
 
 int       successAnimationStep    = 0;
 bool      successAnimationState   = true; // Whether we are currently in the "on" or "off" state of the blinking animation

@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"name": "edge",
+			"path": "edge"
+		},
+		{
+			"name": "gateway",
+			"path": "gateway"
+		},
+		{
+			"name": "eeprom",
+			"path": "utils/eeprom"
+		},
+		{
+			"name": "G1_IoT_Intrusion_Alarm",
+			"path": "."
+		}
+	],
+	"settings": {}
+}

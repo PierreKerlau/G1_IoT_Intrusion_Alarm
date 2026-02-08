@@ -10,10 +10,7 @@
 unsigned long lastSecurityLogicTime = 0;
 unsigned long lastTimePrint         = 0;
 
-/* TODOS
-- Implement EEPROM storage for the secret combination
-- Implement EEPROM storage for the time range rules
-
+/* TODO
 - Add LoRaWAN messages for state changes, especially for TRIGGERED, DISARMED and FAILED_DISARM states
 - Add functionality to change the secret combination via LoRaWAN
 
@@ -29,6 +26,11 @@ unsigned long lastTimePrint         = 0;
 
 void setup() {
   Serial.begin(115200);
+  while (!Serial) {
+    delay(100); // Wait for serial port to connect.
+  }
+
+  delay(4000); // DEBUG: Wait a moment before starting the system
 
   setupSecurity();
   setupLora();

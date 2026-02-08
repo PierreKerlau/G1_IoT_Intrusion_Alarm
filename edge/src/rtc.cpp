@@ -1,11 +1,9 @@
-#include "time_range.h"
-#include <Wire.h>
-#include <iarduino_RTC.h>
+#include "rtc.h"
 
 iarduino_RTC     rtc(RTC_DS1307); // Module DS1307 I2C
 TimeRangeChecker timeRangeChecker = TimeRangeChecker();
 
-void setupRTC() {
+void setupRTC(const TimeRangeRule* rules, size_t ruleCount) {
   rtc.begin();
 
   // The time only needs to be set once, or after a power loss
@@ -19,9 +17,7 @@ void setupRTC() {
       5   // weekday (0-6, 0=Sunday)
   );
 
-  // TODO: Load time range rules from EEPROM
-
-  timeRangeChecker.setTimeRanges(nullptr, 0); // TODO: Pass actual rules here
+  timeRangeChecker.setTimeRanges(rules, ruleCount);
 }
 
 String getTimeString() {

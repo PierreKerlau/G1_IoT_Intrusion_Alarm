@@ -1,5 +1,4 @@
 #include "security_audio.h"
-#include <Arduino.h>
 
 // Comment out the #define below to disable sound effects
 #define USE_SOUND

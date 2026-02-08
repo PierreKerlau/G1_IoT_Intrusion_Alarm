@@ -1,7 +1,16 @@
 #ifndef SECURITY_CODE_H
 #define SECURITY_CODE_H
 
+#include "eeprom_driver.h"
+#include "motion_detector.h"
 #include "rtc.h"
+#include "security_animation.h"
+#include "security_audio.h"
+#include "time_range.h"
+#include <Arduino.h>
+#include <ChainableLED.h>
+#include <TM1637.h>
+#include <array>
 
 /**
  * Stores the state of the alarm system.
@@ -12,6 +21,7 @@ enum class AlarmState {
   TRIGGERED,     // Alarm triggered due to motion detection, waiting for user to disarm
   DISARMED,      // Alarm was triggered but user successfully disarmed it
   FAILED_DISARM, // Alarm was triggered and user failed to disarm it within the allowed time or number of tries
+  CONFIGURATION  // State used for configuration mode during the first setup (e.g., setting time, changing combination, etc.)
 };
 
 extern bool isTimeInRanges();

@@ -1,6 +1,7 @@
 #ifndef SECURITY_ANIMATION_H
 #define SECURITY_ANIMATION_H
 
+#include <Arduino.h>
 #include <ChainableLED.h>
 #include <TM1637.h>
 #include <array>

@@ -90,38 +90,57 @@ bool TimeRangeChecker::isMonitoringTime(iarduino_RTC& rtc) {
   return false; // No rules matched
 }
 
+/**
+ * Sets the time range rules to be used for monitoring.
+ * The provided rules are copied into the TimeRangeChecker instance.
+ * @param rules An array of TimeRangeRule structures defining the time ranges for monitoring.
+ * @param ruleCount The number of rules in the provided array.
+ */
 void TimeRangeChecker::setTimeRanges(const TimeRangeRule* rules, size_t ruleCount) {
-  // timeRanges = new TimeRangeRule[ruleCount];
-  // for (size_t i = 0; i < ruleCount; ++i) {
-  //   timeRanges[i] = rules[i];
-  // }
-  // rulesCount = ruleCount;
+  if (rules == nullptr || ruleCount == 0) {
+    Serial.println("No time range rules provided. Monitoring will be disabled.");
+    rulesCount = 0;
+    delete[] timeRanges; // Free any existing rules
+    timeRanges = nullptr;
+    return;
+  }
 
-  // Test with hardcoded values for now
-  rulesCount = 1;
-  timeRanges = new TimeRangeRule[rulesCount];
-  // Every day, every hour, every day of month, every month
+  if (ruleCount > 255) {
+    Serial.println("Error: Cannot set more than 255 time range rules. Only the first 255 rules will be used. Provided ruleCount: " + String(ruleCount));
+    ruleCount = 255; // Adjust to maximum allowed
+  }
+
+  timeRanges = new TimeRangeRule[ruleCount];
+  for (size_t i = 0; i < ruleCount; ++i) {
+    timeRanges[i] = rules[i];
+  }
+  rulesCount = ruleCount;
+
+  // // Test with hardcoded values for now
+  // rulesCount = 1;
+  // timeRanges = new TimeRangeRule[rulesCount];
+  // // Every day, every hour, every day of month, every month
+  // // timeRanges[0] = TimeRangeRule{
+  // //   .weekDayMask  = 0b01111111, // All days of the week
+  // //   .hourMask     = 0b00000000111111111111111111111111, // All hours of the day (0-23)
+  // //   .monthDayMask = 0b11111111111111111111111111111110, // All days of the month (1-31)
+  // //   .monthMask    = 0b0001111111111110,
+  // // };
+  // // Every day, every hour, every day of month, every month
   // timeRanges[0] = TimeRangeRule{
-  //   .weekDayMask  = 0b01111111, // All days of the week
-  //   .hourMask     = 0b00000000111111111111111111111111, // All hours of the day (0-23)
-  //   .monthDayMask = 0b11111111111111111111111111111110, // All days of the month (1-31)
-  //   .monthMask    = 0b0001111111111110,
+  //     .weekDayMask  = 0b00111110,                         // Monday to Friday (1-5)
+  //     .hourMask     = 0b00000000111111000000000011111100, // 2h-7h, 18h-23h (0-1, 8-17)
+  //     .monthDayMask = 0b11111111111111111111111111111110, // All days of the month (1-31)
+  //     .monthMask    = 0b0000000001111000,                 // March to June (3-6)
   // };
-  // Every day, every hour, every day of month, every month
-  timeRanges[0] = TimeRangeRule{
-      .weekDayMask  = 0b00111110,                         // Monday to Friday (1-5)
-      .hourMask     = 0b00000000111111000000000011111100, // 2h-7h, 18h-23h (0-1, 8-17)
-      .monthDayMask = 0b11111111111111111111111111111110, // All days of the month (1-31)
-      .monthMask    = 0b0000000001111000,                 // March to June (3-6)
-  };
-  Serial.println("Added time range rule:");
-  Serial.print(" - Weekday mask: ");
-  Serial.println(timeRanges[0].weekDayMask, BIN);
-  Serial.print(" - Hour mask: ");
-  Serial.println(timeRanges[0].hourMask, BIN);
-  Serial.print(" - Month day mask: ");
-  Serial.println(timeRanges[0].monthDayMask, BIN);
-  Serial.print(" - Month mask: ");
-  Serial.println(timeRanges[0].monthMask, BIN);
-  Serial.println();
+  // Serial.println("Added time range rule:");
+  // Serial.print(" - Weekday mask: ");
+  // Serial.println(timeRanges[0].weekDayMask, BIN);
+  // Serial.print(" - Hour mask: ");
+  // Serial.println(timeRanges[0].hourMask, BIN);
+  // Serial.print(" - Month day mask: ");
+  // Serial.println(timeRanges[0].monthDayMask, BIN);
+  // Serial.print(" - Month mask: ");
+  // Serial.println(timeRanges[0].monthMask, BIN);
+  // Serial.println();
 }

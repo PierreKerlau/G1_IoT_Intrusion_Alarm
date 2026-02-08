@@ -1,12 +1,4 @@
 #include "security_code.h"
-#include "motion_detector.h"
-#include "rtc.h"
-#include "security_animation.h"
-#include "security_audio.h"
-#include <Arduino.h>
-#include <ChainableLED.h>
-#include <TM1637.h>
-#include <array>
 
 TM1637 tm1637(6, 7);
 
@@ -26,17 +18,16 @@ const int BUZZER_PIN = 11;
 #define LED_HUE_TRIGGERED       0.14 // Yellow
 #define LED_HUE_DISARMED        0.3  // Green
 #define LED_HUE_FAILED_DISARM   0    // Red
+#define LED_HUE_CONFIGURATION   0.75 // Purple
 const int    LED_CLK_PIN  = 8;
 const int    LED_DATA_PIN = 9;
 ChainableLED leds(LED_CLK_PIN, LED_DATA_PIN, NUM_LEDS);
 
-// TODO: Retrieve the secret combination in EEPROM
-// TODO: If no combination is set in EEPROM, generate a random one at startup and display it for a few seconds before clearing the screen and starting the system
 // TODO: Add a way to change the secret combination from LoRaWAN
 // Combination and cursor position variables
-std::array<int, 4> currentCombination  = {0, 0, 0, 0}; // Current combination entered by the user (default to 0000)
-std::array<int, 4> expectedCombination = {1, 2, 3, 4}; // TODO: Do not hardcode this! Correct combination to disarm the system (default to 1234)
-int                cursorPosition      = 0;            // Position of the cursor (0 to 3)
+std::array<int, 4> currentCombination  = {0, 0, 0, 0};     // Current combination entered by the user (default to 0000)
+std::array<int, 4> expectedCombination = {-1, -1, -1, -1}; // Correct combination to disarm the system. Initialize with -1 to indicate that it has not been set yet.
+int                cursorPosition      = 0;                // Position of the cursor (0 to 3)
 
 // Blinking effect variables
 unsigned long lastTimeBlink    = 0;
@@ -78,7 +69,45 @@ void setupSecurity() {
   tm1637.clearDisplay();
 
   setupMotion();
-  setupRTC();
+
+  EEPROMSetupData eepromData = setupEEPROM();
+  expectedCombination        = eepromData.secretCombination;
+  bool validEepromData       = true;
+  for (int i = 0; i < 4; i++) {
+    int value = eepromData.secretCombination[i];
+    if (value < 0 || value > 9) {
+      Serial.print("Error: Invalid secret combination digit retrieved from EEPROM at index ");
+      Serial.print(i);
+      Serial.print(": ");
+      Serial.println(expectedCombination[i]);
+      validEepromData = false;
+    }
+  }
+  if (eepromData.timeRangeRulesCount == 0) {
+    Serial.print("Error: Invalid time range rules count retrieved from EEPROM: ");
+    Serial.println(eepromData.timeRangeRulesCount);
+    validEepromData = false;
+  }
+
+  if (!validEepromData) {
+    Serial.println("Error: Invalid data retrieved from EEPROM. Using default configuration.");
+    setupRTC(nullptr, 0); // Setup RTC with no time range rules, effectively disabling time-based monitoring until valid configuration is set
+    setAlarmState(AlarmState::CONFIGURATION);
+  } else { // Valid data retrieved from EEPROM, proceed with normal setup
+    size_t         ruleCount = eepromData.timeRangeRulesCount;
+    TimeRangeRule* rules     = new TimeRangeRule[ruleCount];
+
+    Serial.println("Secret combination retrieved from EEPROM: " + String(eepromData.secretCombination[0]) + String(eepromData.secretCombination[1]) + String(eepromData.secretCombination[2]) + String(eepromData.secretCombination[3]));
+    Serial.println("Number of time range rules retrieved from EEPROM: " + String(eepromData.timeRangeRulesCount));
+
+    retrieveTimeRangeRulesEEPROM(rules, ruleCount);
+    for (size_t i = 0; i < ruleCount; i++) {
+      Serial.println("Time Range Rule " + String(i) + ": weekDayMask=" + String(rules[i].weekDayMask, BIN) + ", hourMask=" + String(rules[i].hourMask, BIN) + ", monthDayMask=" + String(rules[i].monthDayMask, BIN) + ", monthMask=" + String(rules[i].monthMask, BIN));
+    }
+
+    setupRTC(rules, ruleCount); // Setup RTC with the retrieved time range rules to enable time-based monitoring
+    delete[] rules;             // Free the dynamically allocated memory for time range rules after setting up RTC
+  }
 }
 
 // --- MAIN LOGIC ---
@@ -139,6 +168,8 @@ AlarmState runSecurityLogic() {
       playAlarmTimeoutSound(BUZZER_PIN);
       setAlarmState(AlarmState::INACTIVE);
     }
+  } else if (alarmState == AlarmState::CONFIGURATION) {
+    // TODO: Configure the system (e.g., set time, change combination, etc.)
   }
   return alarmState;
 }
@@ -273,6 +304,7 @@ void updateLedColor() {
     case AlarmState::TRIGGERED:     hue = LED_HUE_TRIGGERED; break;
     case AlarmState::DISARMED:      hue = LED_HUE_DISARMED; break;
     case AlarmState::FAILED_DISARM: hue = LED_HUE_FAILED_DISARM; break;
+    case AlarmState::CONFIGURATION: hue = LED_HUE_CONFIGURATION; break;
     }
 
     leds.setColorHSB(0, hue, LED_SATURATION, LED_BRIGHTNESS);
@@ -331,6 +363,9 @@ void setAlarmState(AlarmState newState) {
     playAlarmSound(BUZZER_PIN);
     playErrorAnimation(tm1637, leds);
     resetBlinking();
+  } else if (alarmState == AlarmState::CONFIGURATION) {
+    updateLedColor();
+    // TODO: Handle configuration mode
   }
 }
 
@@ -349,6 +384,8 @@ String alarmStateToString(AlarmState state) {
     return "DISARMED";
   case AlarmState::FAILED_DISARM:
     return "FAILED_DISARM";
+  case AlarmState::CONFIGURATION:
+    return "CONFIGURATION";
   default:
     return "UNKNOWN";
   }

@@ -1,5 +1,4 @@
 #include "motion_detector.h"
-#include <Arduino.h>
 
 const int pinPir = 12;
 
