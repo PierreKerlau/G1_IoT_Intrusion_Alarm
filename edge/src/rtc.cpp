@@ -1,6 +1,6 @@
-#include "Wire.h"
-#include "iarduino_RTC.h"
 #include "time_range.h"
+#include <Wire.h>
+#include <iarduino_RTC.h>
 
 iarduino_RTC     rtc(RTC_DS1307); // Module DS1307 I2C
 TimeRangeChecker timeRangeChecker = TimeRangeChecker();
@@ -10,7 +10,7 @@ void setupRTC() {
 
   // The time only needs to be set once, or after a power loss
   rtc.settime(
-      50, // seconds
+      55, // seconds
       59, // minutes
       17, // hours
       6,  // day
@@ -28,6 +28,10 @@ String getTimeString() {
   return String(rtc.gettime("d-m-Y, H:i:s, D"));
 }
 
-bool isTimeInRanges() {
-  return timeRangeChecker.isTimeInRanges(rtc);
+/**
+ * Checks if the current time falls within any of the defined time ranges for monitoring.
+ * @return true if the current time is within a monitoring range, false otherwise.
+ */
+bool isMonitoringTime() {
+  return timeRangeChecker.isMonitoringTime(rtc);
 }

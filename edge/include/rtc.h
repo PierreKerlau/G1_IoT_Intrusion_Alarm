@@ -5,6 +5,6 @@
 
 void   setupRTC();
 String getTimeString();
-bool   isTimeInRanges();
+bool   isMonitoringTime();
 
 #endif // RTC_H

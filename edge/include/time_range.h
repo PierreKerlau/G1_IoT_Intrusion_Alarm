@@ -1,8 +1,8 @@
 #ifndef TIME_RANGE_H
 #define TIME_RANGE_H
 
-#include "iarduino_RTC.h"
 #include <Arduino.h>
+#include <iarduino_RTC.h>
 
 /**
  * Represents a time range rule, which can be used to check if a given time falls within this range.
@@ -27,7 +27,7 @@ private:
   bool isTimeInRange(const TimeRangeRule& timeRule, const TimeRangeRule& currentTimeAsRange);
 
 public:
-  bool isTimeInRanges(iarduino_RTC& rtc);
+  bool isMonitoringTime(iarduino_RTC& rtc);
   void setTimeRanges(const TimeRangeRule* rules, size_t ruleCount);
 };
 

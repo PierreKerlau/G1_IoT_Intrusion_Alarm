@@ -1,5 +1,5 @@
+#include "security_audio.h"
 #include <Arduino.h>
-#include <security_audio.h>
 
 // Comment out the #define below to disable sound effects
 #define USE_SOUND
@@ -37,5 +37,15 @@ void playMotionSound(int buzzerPin) {
 void playAlarmSound(int buzzerPin) {
 #if defined(USE_SOUND) && defined(ALARM_SOUND)
   tone(buzzerPin, 600, ALARM_SOUND_DURATION);
+#endif
+}
+
+void playAlarmTimeoutSound(int buzzerPin) {
+#if defined(USE_SOUND)
+  tone(buzzerPin, 349, 200);
+  delay(200);
+  tone(buzzerPin, 392, 200);
+  delay(200);
+  tone(buzzerPin, 440, 200);
 #endif
 }

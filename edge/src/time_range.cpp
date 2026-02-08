@@ -25,7 +25,7 @@ bool TimeRangeChecker::isTimeInRange(const TimeRangeRule& timeRule, const TimeRa
   return true; // All checks passed, time is in range
 }
 
-bool TimeRangeChecker::isTimeInRanges(iarduino_RTC& rtc) {
+bool TimeRangeChecker::isMonitoringTime(iarduino_RTC& rtc) {
   TimeRangeRule currentTimeAsRange;
   uint16_t      weekDay  = rtc.weekday;
   uint16_t      hour     = rtc.Hours;
