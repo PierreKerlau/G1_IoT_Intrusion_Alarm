@@ -27,6 +27,8 @@ private:
   bool isTimeInRange(const TimeRangeRule& timeRule, const TimeRangeRule& currentTimeAsRange);
 
 public:
+  TimeRangeChecker();
+  ~TimeRangeChecker();
   bool isMonitoringTime(iarduino_RTC& rtc);
   void setTimeRanges(const TimeRangeRule* rules, size_t ruleCount);
 };

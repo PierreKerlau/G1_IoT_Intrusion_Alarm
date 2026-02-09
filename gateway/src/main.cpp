@@ -109,6 +109,11 @@ void listenSerial() {
       delay(300);
       loraSerial.println("AT+TEST=RXLRPKT");
     }
+#ifdef DEBUG_SERIAL_PRINT
+    else {
+      Serial.println("[Serial] Invalid command, could not convert to LoRa.");
+    }
+#endif // DEBUG_SERIAL_PRINT
   }
 }
 
@@ -159,6 +164,7 @@ String loraToSerial(const String& loraLine) {
  */
 String serialToLora(const String& serialLine) {
   LoraPayload pkt = jsonToPayload(serialLine);
+  printPayload(pkt);
   if (pkt.id == 0) {
     // Invalid payload, return empty string
     return "";
@@ -272,23 +278,23 @@ LoraPayload jsonToPayload(const String& json) {
   // Extract length
   pos = json.indexOf("\"length\":");
   if (pos >= 0) {
-    int    end = json.indexOf(",", pos);
-    String val = json.substring(pos + 8, end);
+    int    end = json.indexOf(",", pos + 9);
+    String val = json.substring(pos + 9, end);
     pkt.length = (uint8_t)strtol(val.c_str(), nullptr, 10);
   }
 
   // Extract data
-  pos = json.indexOf("\"data\":");
+  pos = json.indexOf("\"data\":\"");
   if (pos >= 0) {
-    int    end = json.indexOf(",", pos);
-    String val = json.substring(pos + 7, end);
+    int    end = json.indexOf("\"", pos + 8);
+    String val = json.substring(pos + 8, end);
     pkt.data   = val;
   }
 
   // Extract hmac
   pos = json.indexOf("\"hmac\":\"");
   if (pos >= 0) {
-    int end  = json.indexOf("\"", pos);
+    int end  = json.indexOf("\"", pos + 8);
     pkt.hmac = json.substring(pos + 8, end);
   }
 
@@ -343,4 +349,21 @@ String payloadToHex(const LoraPayload& pkt) {
   appendHexBytesFromHexString(hex, pkt.hmac, 4);
 
   return hex;
+}
+
+void printPayload(const LoraPayload& pkt) {
+  Serial.println(F("[LoRa] Payload received:"));
+
+  Serial.print("  ID: ");
+  Serial.println(pkt.id);
+  Serial.print("  TS: ");
+  Serial.println(pkt.ts);
+  Serial.print("  Type: ");
+  Serial.println(static_cast<uint8_t>(pkt.type), HEX);
+  Serial.print("  Length: ");
+  Serial.println(pkt.length, HEX);
+  Serial.print("  Data: ");
+  Serial.println(pkt.data);
+  Serial.print("  HMAC: ");
+  Serial.println(pkt.hmac);
 }

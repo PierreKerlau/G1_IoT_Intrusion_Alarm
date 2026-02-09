@@ -1,27 +1,39 @@
 #include "time_range.h"
 
+TimeRangeChecker::TimeRangeChecker() {
+  timeRanges = nullptr;
+  rulesCount = 0;
+}
+
+// Destructor will never be called but it is still good practice to free unused memory
+TimeRangeChecker::~TimeRangeChecker() {
+  delete[] timeRanges;
+  timeRanges = nullptr;
+  rulesCount = 0;
+}
+
 bool TimeRangeChecker::isTimeInRange(const TimeRangeRule& timeRule, const TimeRangeRule& currentTimeAsRange) {
   // Check day of week
   if ((timeRule.weekDayMask & currentTimeAsRange.weekDayMask) == 0) {
-    // Serial.print(" -> Weekday does not match"); Serial.print(" (Rule mask: "); Serial.print(timeRule.weekDayMask, BIN); Serial.print(", Current mask: "); Serial.print(currentTimeAsRange.weekDayMask, BIN); Serial.println(")");
+    // Serial.print("[TIME_RULES] -> Weekday does not match"); Serial.print(" (Rule mask: "); Serial.print(timeRule.weekDayMask, BIN); Serial.print(", Current mask: "); Serial.print(currentTimeAsRange.weekDayMask, BIN); Serial.println(")");
     return false;
   }
   // Check hour
   if ((timeRule.hourMask & currentTimeAsRange.hourMask) == 0) {
-    // Serial.print(" -> Hour does not match"); Serial.print(" (Rule mask: "); Serial.print(timeRule.weekDayMask, BIN); Serial.print(", Current mask: "); Serial.print(currentTimeAsRange.weekDayMask, BIN); Serial.println(")");
+    // Serial.print("[TIME_RULES] -> Hour does not match"); Serial.print(" (Rule mask: "); Serial.print(timeRule.weekDayMask, BIN); Serial.print(", Current mask: "); Serial.print(currentTimeAsRange.weekDayMask, BIN); Serial.println(")");
     return false;
   }
   // Check day of month
   if ((timeRule.monthDayMask & currentTimeAsRange.monthDayMask) == 0) {
-    // Serial.print(" -> Day of month does not match"); Serial.print(" (Rule mask: "); Serial.print(timeRule.weekDayMask, BIN); Serial.print(", Current mask: "); Serial.print(currentTimeAsRange.weekDayMask, BIN); Serial.println(")");
+    // Serial.print("[TIME_RULES] -> Day of month does not match"); Serial.print(" (Rule mask: "); Serial.print(timeRule.weekDayMask, BIN); Serial.print(", Current mask: "); Serial.print(currentTimeAsRange.weekDayMask, BIN); Serial.println(")");
     return false;
   }
   // Check month
   if ((timeRule.monthMask & currentTimeAsRange.monthMask) == 0) {
-    // Serial.print(" -> Month does not match"); Serial.print(" (Rule mask: "); Serial.print(timeRule.weekDayMask, BIN); Serial.print(", Current mask: "); Serial.print(currentTimeAsRange.weekDayMask, BIN); Serial.println(")");
+    // Serial.print("[TIME_RULES] -> Month does not match"); Serial.print(" (Rule mask: "); Serial.print(timeRule.weekDayMask, BIN); Serial.print(", Current mask: "); Serial.print(currentTimeAsRange.weekDayMask, BIN); Serial.println(")");
     return false;
   }
-  // Serial.print(" -> Time matches this rule"); Serial.print(" (Rule weekDay: "); Serial.print(timeRule.weekDayMask, BIN); Serial.print(", hour: "); Serial.print(timeRule.hourMask, BIN); Serial.print(", day: "); Serial.print(timeRule.monthDayMask, BIN); Serial.print(", month: "); Serial.print(timeRule.monthMask, BIN); Serial.println(")");
+  // Serial.print("[TIME_RULES] -> Time matches this rule"); Serial.print(" (Rule weekDay: "); Serial.print(timeRule.weekDayMask, BIN); Serial.print(", hour: "); Serial.print(timeRule.hourMask, BIN); Serial.print(", day: "); Serial.print(timeRule.monthDayMask, BIN); Serial.print(", month: "); Serial.print(timeRule.monthMask, BIN); Serial.println(")");
   return true; // All checks passed, time is in range
 }
 
@@ -33,7 +45,7 @@ bool TimeRangeChecker::isMonitoringTime(iarduino_RTC& rtc) {
   uint16_t      month    = rtc.month;
 
 #ifdef DEBUG
-  Serial.print("Weekday=");
+  Serial.print("[TIME_RULES] Weekday=");
   Serial.print(weekDay);
   Serial.print(", Hour=");
   Serial.print(hour);
@@ -46,7 +58,14 @@ bool TimeRangeChecker::isMonitoringTime(iarduino_RTC& rtc) {
 #endif // DEBUG
 
   if (weekDay > 6 || hour > 23 || monthDay == 0 || monthDay > 31 || month == 0 || month > 12) {
-    Serial.print("Invalid time values from RTC: ");
+    Serial.print("[TIME_RULES] Invalid time values from RTC: weekday=");
+    Serial.print(weekDay);
+    Serial.print(", hour=");
+    Serial.print(hour);
+    Serial.print(", day=");
+    Serial.print(monthDay);
+    Serial.print(", month=");
+    Serial.print(month);
     Serial.println();
 
     return false;
@@ -58,7 +77,7 @@ bool TimeRangeChecker::isMonitoringTime(iarduino_RTC& rtc) {
   currentTimeAsRange.monthMask    = 1 << month;    // Get month (1-12) and convert to bitmask
 
 #ifdef DEBUG
-  Serial.print("Current time: ");
+  Serial.print("[TIME_RULES] Current time: ");
   Serial.print(rtc.gettime("d-m-Y, H:i:s, D"));
 
   Serial.print(" Current time as range: ");
@@ -95,10 +114,11 @@ bool TimeRangeChecker::isMonitoringTime(iarduino_RTC& rtc) {
  * The provided rules are copied into the TimeRangeChecker instance.
  * @param rules An array of TimeRangeRule structures defining the time ranges for monitoring.
  * @param ruleCount The number of rules in the provided array.
+ * @note Allows null data to remove all existing time range rules, effectively disabling time-based monitoring.
  */
 void TimeRangeChecker::setTimeRanges(const TimeRangeRule* rules, size_t ruleCount) {
   if (rules == nullptr || ruleCount == 0) {
-    Serial.println("No time range rules provided. Monitoring will be disabled.");
+    Serial.println("[TIME_RULES] No time range rules provided. Monitoring will be disabled.");
     rulesCount = 0;
     delete[] timeRanges; // Free any existing rules
     timeRanges = nullptr;
@@ -106,41 +126,14 @@ void TimeRangeChecker::setTimeRanges(const TimeRangeRule* rules, size_t ruleCoun
   }
 
   if (ruleCount > 255) {
-    Serial.println("Error: Cannot set more than 255 time range rules. Only the first 255 rules will be used. Provided ruleCount: " + String(ruleCount));
+    Serial.println("[TIME_RULES] Error: Cannot set more than 255 time range rules. Only the first 255 rules will be used. Provided ruleCount: " + String(ruleCount));
     ruleCount = 255; // Adjust to maximum allowed
   }
 
+  delete[] timeRanges; // Clear previous rules
   timeRanges = new TimeRangeRule[ruleCount];
   for (size_t i = 0; i < ruleCount; ++i) {
     timeRanges[i] = rules[i];
   }
   rulesCount = ruleCount;
-
-  // // Test with hardcoded values for now
-  // rulesCount = 1;
-  // timeRanges = new TimeRangeRule[rulesCount];
-  // // Every day, every hour, every day of month, every month
-  // // timeRanges[0] = TimeRangeRule{
-  // //   .weekDayMask  = 0b01111111, // All days of the week
-  // //   .hourMask     = 0b00000000111111111111111111111111, // All hours of the day (0-23)
-  // //   .monthDayMask = 0b11111111111111111111111111111110, // All days of the month (1-31)
-  // //   .monthMask    = 0b0001111111111110,
-  // // };
-  // // Every day, every hour, every day of month, every month
-  // timeRanges[0] = TimeRangeRule{
-  //     .weekDayMask  = 0b00111110,                         // Monday to Friday (1-5)
-  //     .hourMask     = 0b00000000111111000000000011111100, // 2h-7h, 18h-23h (0-1, 8-17)
-  //     .monthDayMask = 0b11111111111111111111111111111110, // All days of the month (1-31)
-  //     .monthMask    = 0b0000000001111000,                 // March to June (3-6)
-  // };
-  // Serial.println("Added time range rule:");
-  // Serial.print(" - Weekday mask: ");
-  // Serial.println(timeRanges[0].weekDayMask, BIN);
-  // Serial.print(" - Hour mask: ");
-  // Serial.println(timeRanges[0].hourMask, BIN);
-  // Serial.print(" - Month day mask: ");
-  // Serial.println(timeRanges[0].monthDayMask, BIN);
-  // Serial.print(" - Month mask: ");
-  // Serial.println(timeRanges[0].monthMask, BIN);
-  // Serial.println();
 }

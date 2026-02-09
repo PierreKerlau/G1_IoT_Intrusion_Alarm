@@ -273,18 +273,18 @@ bool hexToPayloadBE(const String& hex, LoraPayload& pkt) {
 uint32_t computeHMAC(const LoraPayload& pkt) {
   String data = String(pkt.id) + String(pkt.ts) + String(static_cast<uint8_t>(pkt.type)) + String(pkt.length) + String((char*)pkt.data, pkt.length);
 
-  Serial.println("[HMAC] Computing HMAC for payload data (raw): " + String(pkt.id) + "," + String(pkt.ts) + "," + String(static_cast<uint8_t>(pkt.type)) + "," + String(pkt.length) + "," + String((char*)pkt.data, pkt.length));
-  Serial.println("[HMAC] Computing HMAC for payload data (data): " + data);
+  // Serial.println("[HMAC] Computing HMAC for payload data (raw): " + String(pkt.id) + "," + String(pkt.ts) + "," + String(static_cast<uint8_t>(pkt.type)) + "," + String(pkt.length) + "," + String((char*)pkt.data, pkt.length));
+  // Serial.println("[HMAC] Computing HMAC for payload data (data): " + data);
   uint32_t hmac = 5381; // Initialize with a cryptographic magic number
 
   String mix = data + HMAC_KEY;
-  Serial.println("[HMAC] Computing HMAC for payload data (mix): " + mix);
+  // Serial.println("[HMAC] Computing HMAC for payload data (mix): " + mix);
   for (int i = 0; i < mix.length(); i++) {
-    Serial.println("[HMAC] Computing HMAC for payload data (hmac): i=" + String(i) + ", " + mix);
+    // Serial.println("[HMAC] Computing HMAC for payload data (hmac): i=" + String(i) + ", " + mix);
     hmac = ((hmac << 5) + hmac) + mix.charAt(i); // hmac * 33 + c
   }
 
-  Serial.println("[HMAC] HMAC result: " + String(hmac));
+  // Serial.println("[HMAC] HMAC result: " + String(hmac));
   return hmac;
 }
 

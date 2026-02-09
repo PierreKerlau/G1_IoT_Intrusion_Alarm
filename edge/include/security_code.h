@@ -12,6 +12,7 @@
 #include <ChainableLED.h>
 #include <TM1637.h>
 #include <array>
+#include <optional>
 
 /**
  * Stores the state of the alarm system.
@@ -35,5 +36,7 @@ String alarmStateToString(AlarmState state);
 AlarmState runSecurityLogic();
 AlarmState getAlarmState();
 void       setAlarmState(AlarmState newState);
+
+std::optional<AlarmState> parseAlarmState(uint8_t raw);
 
 #endif // SECURITY_CODE_H

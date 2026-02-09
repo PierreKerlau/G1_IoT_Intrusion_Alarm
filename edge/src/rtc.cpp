@@ -35,3 +35,11 @@ bool isMonitoringTime() {
 uint32_t getCurrentUnixTime() {
   return rtc.gettimeUnix();
 }
+
+void setCurrentUnixTime(uint32_t unixTime) {
+  rtc.settimeUnix(unixTime);
+}
+
+void setTimeRangeRules(const TimeRangeRule* rules, size_t ruleCount) {
+  timeRangeChecker.setTimeRanges(rules, ruleCount);
+}

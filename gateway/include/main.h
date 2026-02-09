@@ -23,6 +23,7 @@ struct LoraPayload {
 
 void listenLora();
 void listenSerial();
+void printPayload(const LoraPayload& pkt);
 
 // Lora (hex) -> LoraPayload -> Json -> Serial (Json)
 String loraToSerial(const String& loraLine);
