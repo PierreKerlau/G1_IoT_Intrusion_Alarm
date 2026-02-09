@@ -55,11 +55,12 @@ void loop() {
 
   //     // Send a test configuration payload every 10 seconds for testing purposes
   //     LoraPayload pkt{
-  //         .id   = EXPECTED_ID,
-  //         .seq  = 0,
-  //         .ts   = 123456, // Use current time in seconds as timestamp
-  //         .type = PayloadType::CONFIGURATION,
-  //         .data = 0xDEADBEEF // Example configuration data
+  //         .id     = EXPECTED_ID,
+  //         .ts     = 123456, // Use current time in seconds as timestamp
+  //         .type   = PayloadType::CONFIGURATION,
+  //         .length = 4,
+  //         .data   = "DEADBEEF", // Example configuration data
+  //         .hmac   = "ABCD1234"  // Example HMAC, TODO: Compute real HMAC
   //     };
   //     String hex      = payloadToHex(pkt);
   //     String loraLine = "AT+TEST=TXLRPKT,\"" + hex + "\"";
@@ -78,7 +79,9 @@ void listenLora() {
     loraLine.trim();
 
 #ifdef DEBUG_SERIAL_PRINT
-    Serial.println(String("[LoRa] Payload received (raw): ") + loraLine);
+    if (loraLine.startsWith("+TEST: RX \"")) {
+      Serial.println(String("[LoRa] Payload received (raw): ") + loraLine);
+    }
 #endif // DEBUG_SERIAL_PRINT
 
     String json = loraToSerial(loraLine);
@@ -118,12 +121,15 @@ String loraToSerial(const String& loraLine) {
   String json = "";
 
   // Expected format: +TEST: RX,"<hex_data>"
-  if (loraLine.startsWith("+TEST: RX")) {
+  if (loraLine.startsWith("+TEST: RX \"")) {
     int q1 = loraLine.indexOf('"');
     int q2 = loraLine.indexOf('"', q1 + 1);
 
     if (q1 >= 0 && q2 > q1) {
-      String      hexData = loraLine.substring(q1 + 1, q2);
+      String hexData = loraLine.substring(q1 + 1, q2);
+#ifdef DEBUG_SERIAL_PRINT
+      Serial.println(String("[LoRa] Hex payload extracted: ") + hexData);
+#endif // DEBUG_SERIAL_PRINT
       LoraPayload pkt;
 
       if (hexToPayload(hexData, pkt)) {
@@ -135,6 +141,11 @@ String loraToSerial(const String& loraLine) {
 #endif // DEBUG_SERIAL_PRINT
         }
       }
+#ifdef DEBUG_SERIAL_PRINT
+      else {
+        Serial.println("Failed to convert hex to payload, invalid hex data.");
+      }
+#endif // DEBUG_SERIAL_PRINT
     }
   }
 
@@ -165,8 +176,6 @@ String serialToLora(const String& serialLine) {
  * @return true if the conversion was successful, false if the hex string is invalid (e.g. wrong length, non-hex characters, etc.).
  */
 bool hexToPayload(const String& hex, LoraPayload& pkt) {
-  if (hex.length() < (sizeof(LoraPayload) * 2)) return false;
-
   // Parse a 32-bit unsigned integer from big-endian hex (8 chars = 4 bytes).
   auto parseU32BE = [](const String& s, size_t offset) -> uint32_t {
     uint32_t value = 0;
@@ -178,15 +187,27 @@ bool hexToPayload(const String& hex, LoraPayload& pkt) {
   };
 
   size_t offset = 0;
-  pkt.id        = (uint8_t)strtoul(hex.substring(offset, offset + 2).c_str(), nullptr, 16);
+
+  pkt.id = (uint8_t)strtoul(hex.substring(offset, offset + 2).c_str(), nullptr, 16);
   offset += 2;
-  pkt.seq = parseU32BE(hex, offset);
-  offset += 8;
   pkt.ts = parseU32BE(hex, offset);
   offset += 8;
   pkt.type = static_cast<PayloadType>(strtoul(hex.substring(offset, offset + 2).c_str(), nullptr, 16));
   offset += 2;
-  pkt.data = parseU32BE(hex, offset);
+  pkt.length = (uint8_t)strtoul(hex.substring(offset, offset + 2).c_str(), nullptr, 16);
+  offset += 2;
+
+  if (hex.length() - 8 < offset + pkt.length * 2) { // Invalid hex string, not enough data for the declared length
+#ifdef DEBUG_SERIAL_PRINT
+    Serial.println("Invalid hex string: not enough data for the declared length. Expected at least " + String(offset + pkt.length * 2) + String(" characters, but got ") + String(hex.length()) + " characters. offset: " + String(offset) + " length: " + String(pkt.length));
+#endif // DEBUG_SERIAL_PRINT
+    return false;
+  }
+
+  pkt.data = hex.substring(offset, offset + pkt.length * 2); // Each byte is represented by 2 hex characters
+  offset += pkt.length * 2;
+  pkt.hmac = hex.substring(offset, offset + 8); // Each byte is represented by 2 hex characters
+  offset += 8;
 
   return true;
 }
@@ -200,10 +221,11 @@ bool hexToPayload(const String& hex, LoraPayload& pkt) {
 String payloadToJson(const LoraPayload& pkt) {
   String json = "{";
   json += "\"id\":" + String(pkt.id) + ",";
-  json += "\"seq\":" + String(pkt.seq) + ",";
   json += "\"ts\":" + String(pkt.ts) + ",";
   json += "\"type\":" + String(static_cast<uint8_t>(pkt.type)) + ",";
-  json += "\"data\":" + String(pkt.data);
+  json += "\"length\":" + String(pkt.length) + ",";
+  json += "\"data\":\"" + pkt.data + "\",";
+  json += "\"hmac\":\"" + String(pkt.hmac) + "\"";
   json += "}";
   return json;
 }
@@ -216,12 +238,12 @@ String payloadToJson(const LoraPayload& pkt) {
 LoraPayload jsonToPayload(const String& json) {
   // Expected LoraPayload in Json, e.g. {"id":1,"seq":0,"ts":0,"type":2,"data":1}
   LoraPayload pkt = {
-      .id   = 0,
-      .seq  = 0,
-      .ts   = 0,
-      .type = PayloadType::UNKNOWN, // Default to UNKNOWN
-      .data = 0,
+      .id     = 0,
+      .ts     = 0,
+      .type   = PayloadType::UNKNOWN, // Default to UNKNOWN
+      .length = 1,                    // Default to 1
   };
+  pkt.data = "00"; // Default to 0
 
   // Extract id
   int pos = json.indexOf("\"id\":");
@@ -229,14 +251,6 @@ LoraPayload jsonToPayload(const String& json) {
     int    end = json.indexOf(",", pos);
     String val = json.substring(pos + 5, end);
     pkt.id     = (uint8_t)strtol(val.c_str(), nullptr, 10);
-  }
-
-  // Extract seq
-  pos = json.indexOf("\"seq\":");
-  if (pos >= 0) {
-    int    end = json.indexOf(",", pos);
-    String val = json.substring(pos + 6, end);
-    pkt.seq    = (uint32_t)strtol(val.c_str(), nullptr, 10);
   }
 
   // Extract ts
@@ -255,12 +269,34 @@ LoraPayload jsonToPayload(const String& json) {
     pkt.type   = static_cast<PayloadType>(strtol(val.c_str(), nullptr, 10));
   }
 
+  // Extract length
+  pos = json.indexOf("\"length\":");
+  if (pos >= 0) {
+    int    end = json.indexOf(",", pos);
+    String val = json.substring(pos + 8, end);
+    pkt.length = (uint8_t)strtol(val.c_str(), nullptr, 10);
+  }
+
   // Extract data
   pos = json.indexOf("\"data\":");
   if (pos >= 0) {
-    int    end = json.indexOf("}", pos);
+    int    end = json.indexOf(",", pos);
     String val = json.substring(pos + 7, end);
-    pkt.data   = (uint32_t)strtol(val.c_str(), nullptr, 10);
+    pkt.data   = val;
+  }
+
+  // Extract hmac
+  pos = json.indexOf("\"hmac\":\"");
+  if (pos >= 0) {
+    int end  = json.indexOf("\"", pos);
+    pkt.hmac = json.substring(pos + 8, end);
+  }
+
+  if (pkt.length > MAX_PAYLOAD_DATA_SIZE) {
+    pkt.length = MAX_PAYLOAD_DATA_SIZE; // Truncate if length exceeds max
+  } else if (pkt.length == 0) {
+    pkt.length = 1;    // Default to 1 if length is 0
+    pkt.data   = "00"; // Default to "00"
   }
 
   return pkt;
@@ -278,15 +314,20 @@ String payloadToHex(const LoraPayload& pkt) {
     out += hexChars[b >> 4];
     out += hexChars[b & 0x0F];
   };
+  auto appendHexBytesFromHexString = [](String& out, String hexStr, size_t maxBytes) {
+    const char* hexChars = "0123456789ABCDEF";
+    for (size_t i = 0; i < hexStr.length() && i < maxBytes * 2; i += 2) {
+      String  byteStr = hexStr.substring(i, i + 2);
+      uint8_t byteVal = (uint8_t)strtoul(byteStr.c_str(), nullptr, 16);
+      out += hexChars[byteVal >> 4];
+      out += hexChars[byteVal & 0x0F];
+    }
+  };
 
   String hex;
   hex.reserve(sizeof(LoraPayload) * 2);
 
   appendHexByte(hex, pkt.id);
-  appendHexByte(hex, (uint8_t)((pkt.seq >> 24) & 0xFF));
-  appendHexByte(hex, (uint8_t)((pkt.seq >> 16) & 0xFF));
-  appendHexByte(hex, (uint8_t)((pkt.seq >> 8) & 0xFF));
-  appendHexByte(hex, (uint8_t)(pkt.seq & 0xFF));
 
   appendHexByte(hex, (uint8_t)((pkt.ts >> 24) & 0xFF));
   appendHexByte(hex, (uint8_t)((pkt.ts >> 16) & 0xFF));
@@ -295,10 +336,11 @@ String payloadToHex(const LoraPayload& pkt) {
 
   appendHexByte(hex, static_cast<uint8_t>(pkt.type));
 
-  appendHexByte(hex, (uint8_t)((pkt.data >> 24) & 0xFF));
-  appendHexByte(hex, (uint8_t)((pkt.data >> 16) & 0xFF));
-  appendHexByte(hex, (uint8_t)((pkt.data >> 8) & 0xFF));
-  appendHexByte(hex, (uint8_t)(pkt.data & 0xFF));
+  appendHexByte(hex, (uint8_t)(pkt.length & 0xFF));
+
+  appendHexBytesFromHexString(hex, pkt.data, pkt.length);
+
+  appendHexBytesFromHexString(hex, pkt.hmac, 4);
 
   return hex;
 }

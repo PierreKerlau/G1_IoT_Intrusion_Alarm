@@ -10,13 +10,15 @@ enum class PayloadType : uint8_t {
   CONFIGURATION  = 0x03, // TODO: Add support for configuration messages (e.g., changing the secret combination, time range rules, etc.)
 };
 
+#define MAX_PAYLOAD_DATA_SIZE 200
+
 struct LoraPayload {
-  uint8_t     id;
-  uint32_t    seq;
-  uint32_t    ts;
-  PayloadType type;
-  uint32_t    data;
-  // TODO: Add cryptographic signature
+  uint8_t     id;     // 1 byte : ID of the sender node, set by the sender
+  uint32_t    ts;     // 4 bytes : Unix timestamp of when the payload was created, set by the sender
+  PayloadType type;   // 1 byte : Type of the payload (e.g., heartbeat, motion state, configuration, etc.), set by the sender
+  uint8_t     length; // 1 byte : Length of the payload data in bytes, set by the sender
+  String      data;   // Represents MAX_PAYLOAD_DATA_SIZE bytes : Payload data as hexadecimal string, content depends on the payload type, set by the sender
+  String      hmac;   // Represents 4 bytes : HMAC signature of the payload for integrity and authenticity verification
 } __attribute__((packed));
 
 void listenLora();
