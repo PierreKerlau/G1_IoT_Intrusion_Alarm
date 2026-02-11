@@ -1,4 +1,5 @@
 #include "security_code.h"
+#include <optional>
 
 TM1637 tm1637(6, 7);
 
@@ -39,6 +40,8 @@ int       tries     = 0; // Current number of tries
 
 AlarmState alarmState = AlarmState::INACTIVE; // Current state of the alarm system
 
+#define HEARTBEAT_TIME_INTERVAL 6 * 1000     // Interval for the LoRaWAN heartbeat in milliseconds
+unsigned long lastTimeHeartbeat         = 0; // Time when the last heartbeat was sent
 unsigned long alarmStartTime            = 0; // Time when the alarm was first triggered
 unsigned long alarmSuccessfulDisarmTime = 0; // Time when the alarm was successfully disarmed
 
@@ -54,6 +57,11 @@ void updateLedColor();
 void handleButtons();
 void resetBlinking();
 void checkCombination();
+void processLoraPayload(const LoraPayload& pkt);
+void setExpectedCombinationFromPacket(const LoraPayload& pkt);
+void setTimeRulesFromPacket(const LoraPayload& pkt);
+void setAlarmStateFromPacket(const LoraPayload& pkt);
+void setRTCTimeFromPacket(const LoraPayload& pkt, bool forceUpdate = false);
 
 void setupSecurity() {
   pinMode(BUTTON_BLUE_PIN, INPUT_PULLUP);
@@ -126,9 +134,14 @@ void setupSecurity() {
  */
 AlarmState runSecurityLogic() {
   LoraPayload pkt = listenForPayload();
-  if (pkt.id != 0) { // Valid packet received, handle it
-    Serial.println("Valid LoRa packet received");
-    // TODO: Process received LoRa commands/configuration updates
+  if (pkt.type != PayloadType::UNKNOWN) { // Valid packet received
+    processLoraPayload(pkt);              // Process configuration updates
+  }
+
+  // Send heartbeat message at regular intervals to indicate that the system is alive, with the current alarm state included in the payload data
+  if (millis() - lastTimeHeartbeat > HEARTBEAT_TIME_INTERVAL) {
+    lastTimeHeartbeat = millis();
+    loraSendHeartbeat(getAlarmState());
   }
 
   if (alarmState == AlarmState::INACTIVE) {
@@ -139,6 +152,7 @@ AlarmState runSecurityLogic() {
     if (!isMonitoringTime()) {
       setAlarmState(AlarmState::INACTIVE);
     } else if (checkMotion()) { // Motion detected, trigger alarm
+      Serial.println("[MOTION] Motion detected, triggering alarm!");
       playMotionSound(BUZZER_PIN);
       setAlarmState(AlarmState::TRIGGERED);
       alarmStartTime = millis(); // Start the disarm timer
@@ -187,6 +201,116 @@ AlarmState runSecurityLogic() {
     // TODO: Configure the system (e.g., set time, change combination, etc.)
   }
   return alarmState;
+}
+
+// --- LoraWAN PAYLOAD PROCESSING ---
+void processLoraPayload(const LoraPayload& pkt) {
+  // TODO: Test
+
+  // Update RTC (only force update if payload type is SET_RTC_TIME)
+  bool forceTimeUpdate = pkt.type == PayloadType::SET_RTC_TIME;
+  setRTCTimeFromPacket(pkt, forceTimeUpdate);
+
+  if (pkt.type == PayloadType::SET_COMBINATION) {
+    Serial.println("[LoRa] Received SET_COMBINATION payload");
+    setExpectedCombinationFromPacket(pkt);
+  } else if (pkt.type == PayloadType::SET_TIME_RANGE) {
+    Serial.println("[LoRa] Received SET_TIME_RANGE payload");
+    setTimeRulesFromPacket(pkt);
+  } else if (pkt.type == PayloadType::SET_ALARM_STATE) {
+    Serial.println("[LoRa] Received SET_ALARM_STATE payload");
+    setAlarmStateFromPacket(pkt);
+  } else if (pkt.type != PayloadType::SET_RTC_TIME) { // Unknown payload
+    Serial.println("[LoRa] Received unknown payload type from broker");
+  }
+}
+
+void setExpectedCombinationFromPacket(const LoraPayload& pkt) {
+  // TODO: Test
+  if (pkt.length >= 4) { // Combination config: digit1, digit2, digit3, digit4
+    std::array<int, 4> newCombination;
+    bool               validCombination = true;
+    for (int i = 0; i < 4; i++) {
+      newCombination[i] = pkt.data[i];
+      if (newCombination[i] < 0 || newCombination[i] > 9) {
+        Serial.print("[PSWD] Error: Invalid combination digit received in LoRa configuration payload at index ");
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.println(newCombination[i]);
+        validCombination = false;
+        break;
+      }
+    }
+    if (validCombination) {
+      storeSecretCombinationEEPROM(newCombination);
+      expectedCombination = newCombination;
+      // TODO: Remove for security
+      Serial.println("[PSWD] Secret combination updated via LoRaWAN to: " + String(expectedCombination[0]) + String(expectedCombination[1]) + String(expectedCombination[2]) + String(expectedCombination[3]));
+    }
+  }
+}
+
+void setTimeRulesFromPacket(const LoraPayload& pkt) {
+  // TODO: Test
+  size_t ruleCount = (pkt.length - (pkt.length % TIME_RANGE_RULE_BYTES)) / TIME_RANGE_RULE_BYTES;
+  if (ruleCount * TIME_RANGE_RULE_BYTES > MAX_PAYLOAD_DATA_SIZE) {
+    Serial.println("[SET_RULES] Error: Rule count is higher than the maximum possible data size. Length (bytes)=" + String(ruleCount * TIME_RANGE_RULE_BYTES) + ", MAX_PAYLOAD_DATA_SIZE=" + String(MAX_PAYLOAD_DATA_SIZE));
+    return; // Do not set any rules
+  }
+  if (ruleCount == 0 || pkt.length % TIME_RANGE_RULE_BYTES != 0) {
+    Serial.println("[SET_RULES] Warning: Payload length is not a multiple of TimeRangeRule size. Length=" + String(pkt.length) + ", TIME_RANGE_RULE_BYTES=" + String(TIME_RANGE_RULE_BYTES));
+  }
+
+  TimeRangeRule rules[ruleCount];
+  for (size_t i = 0; i < ruleCount; i++) {
+    TimeRangeRule rule = {
+        .weekDayMask  = pkt.data[i * TIME_RANGE_RULE_BYTES],
+        .hourMask     = (pkt.data[i * TIME_RANGE_RULE_BYTES + 1] << 24) | (pkt.data[i * TIME_RANGE_RULE_BYTES + 2] << 16) | (pkt.data[i * TIME_RANGE_RULE_BYTES + 3] << 8) | pkt.data[i * TIME_RANGE_RULE_BYTES + 4],
+        .monthDayMask = (pkt.data[i * TIME_RANGE_RULE_BYTES + 5] << 24) | (pkt.data[i * TIME_RANGE_RULE_BYTES + 6] << 16) | (pkt.data[i * TIME_RANGE_RULE_BYTES + 7] << 8) | pkt.data[i * TIME_RANGE_RULE_BYTES + 8],
+        .monthMask    = (pkt.data[i * TIME_RANGE_RULE_BYTES + 9] << 8) | pkt.data[i * TIME_RANGE_RULE_BYTES + 10],
+    };
+
+    rules[i] = rule;
+  }
+
+  storeTimeRangeRulesEEPROM(rules, ruleCount);
+  setTimeRangeRules(rules, ruleCount);
+}
+
+void setAlarmStateFromPacket(const LoraPayload& pkt) {
+  // TODO: Test
+  if (pkt.length >= 1) {
+    if (auto newState = parseAlarmState(pkt.data[0])) {
+      setAlarmState(*newState);
+      Serial.println("[SET_STATE] Alarm state updated via LoRaWAN");
+    } else {
+      Serial.print("[SET_STATE] Error: Invalid alarm state received: ");
+      Serial.println(pkt.data[0]);
+    }
+  }
+}
+
+/**
+ * Sets the RTC time from a LoRa payload if the timestamp is valid and optionally checks for a time delay.
+ * @param pkt The LoRa payload containing the timestamp.
+ * @param forceUpdate Whether to check for a time delay before setting the RTC time. Set to true to force update without delay check.
+ */
+void setRTCTimeFromPacket(const LoraPayload& pkt, bool forceUpdate) {
+  // TODO: Test
+  if (pkt.ts > MINIMUM_UNIX_TIME && pkt.ts < MAXIMUM_UNIX_TIME) {
+    uint32_t rtcUnixTime = getCurrentUnixTime();
+    if (forceUpdate || pkt.ts < rtcUnixTime - MAX_TIME_DELAY || pkt.ts > rtcUnixTime + MAX_TIME_DELAY) {
+      Serial.println("[SET_RTC] Updating RTC time from payload");
+      String   oldTimeString = getTimeString();
+      uint32_t oldTimeUnix   = getCurrentUnixTime();
+
+      setCurrentUnixTime(pkt.ts);
+      delay(50);
+
+      uint32_t timeDifference = abs((int64_t)(getCurrentUnixTime()) - oldTimeUnix);
+      Serial.println("Time difference: " + String(timeDifference) + " seconds (" + oldTimeString + " -> " + getTimeString() + ")");
+    }
+  }
 }
 
 // --- HANDLING BUTTONS ---
@@ -312,7 +436,7 @@ void updateLedColor() {
   if (alarmState == AlarmState::INACTIVE) {
     leds.setColorHSB(0, 0, LED_SATURATION, LED_BRIGHTNESS_INACTIVE); // Inactive state, LED off
   } else {
-    float hue;
+    float hue = 0;
 
     switch (alarmState) {
     case AlarmState::MONITORING:    hue = LED_HUE_MONITORING; break;
@@ -342,11 +466,12 @@ void setAlarmState(AlarmState newState) {
 
   AlarmState previousState = alarmState; // Temporarily store the previous state
   alarmState               = newState;   // Update state
-
   Serial.print("Alarm state changed: ");
   Serial.println(alarmStateToString(previousState) + " -> " + alarmStateToString(alarmState));
 
-  // TODO: Add LoRaWAN messages for state changes, especially for TRIGGERED, DISARMED and FAILED_DISARM states
+  // Send a heartbeat when the state changes
+  lastTimeHeartbeat = millis();
+  loraSendHeartbeat(newState);
 
   // Handle actions on state change
   if (alarmState == AlarmState::INACTIVE) {
@@ -369,7 +494,6 @@ void setAlarmState(AlarmState newState) {
   } else if (alarmState == AlarmState::DISARMED) {
     updateLedColor();
     alarmSuccessfulDisarmTime = millis(); // Start the timer to reset the system after a successful disarm
-    // TODO: Send LoRaWAN message to notify successful disarm
     playGoodCombinationSound(BUZZER_PIN);
     resetBlinking();
     startSuccessAnimation(); // Initialize success animation variables
@@ -380,7 +504,6 @@ void setAlarmState(AlarmState newState) {
     resetBlinking();
   } else if (alarmState == AlarmState::CONFIGURATION) {
     updateLedColor();
-    // TODO: Handle configuration mode
   }
 }
 
@@ -403,5 +526,40 @@ String alarmStateToString(AlarmState state) {
     return "CONFIGURATION";
   default:
     return "UNKNOWN";
+  }
+}
+
+/**
+ * Convert a uint8_t potentially representing an AlarmState into its enum value or return nullopt
+ * @param raw The raw uint8_t value to convert
+ * @return AlarmState correspondig to the raw value or nullopt
+ */
+std::optional<AlarmState> parseAlarmState(uint8_t raw) {
+  switch (raw) {
+  case 0:  return AlarmState::INACTIVE;
+  case 1:  return AlarmState::MONITORING;
+  case 2:  return AlarmState::TRIGGERED;
+  case 3:  return AlarmState::DISARMED;
+  case 4:  return AlarmState::FAILED_DISARM;
+  case 5:  return AlarmState::CONFIGURATION;
+  default: return std::nullopt; // Invalid value
+  }
+}
+
+/**
+ * Convert a uint8_t potentially representing an PayloadType into its enum value or return nullopt
+ * @param raw The raw uint8_t value to convert
+ * @return PayloadType correspondig to the raw value or nullopt
+ */
+std::optional<PayloadType> parsePayloadType(uint8_t raw) {
+  switch (raw) {
+  case 0x00: return PayloadType::UNKNOWN;
+  case 0x01: return PayloadType::EDGE_HEARTBEAT;
+  case 0x02: return PayloadType::MOTION_STATE;
+  case 0x11: return PayloadType::SET_COMBINATION;
+  case 0x12: return PayloadType::SET_TIME_RANGE;
+  case 0x13: return PayloadType::SET_ALARM_STATE;
+  case 0x14: return PayloadType::SET_RTC_TIME;
+  default:   return std::nullopt; // Invalid value
   }
 }

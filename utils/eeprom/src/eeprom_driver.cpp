@@ -50,7 +50,7 @@ void retrieveTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
 
   for (size_t i = 0; i < ruleCount; i++) {
     // Calculate the base address for the current rule
-    int baseAddress = EEPROM_TIME_RANGE_RULES_START_ADDRESS + i * sizeof(TimeRangeRule);
+    int baseAddress = EEPROM_TIME_RANGE_RULES_START_ADDRESS + i * TIME_RANGE_RULE_BYTES;
 
     // Read each byte of the TimeRangeRule structure from EEPROM and reconstruct the structure
     rules[i].weekDayMask  = EEPROM.read(baseAddress);
@@ -69,6 +69,11 @@ void retrieveTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
   }
 }
 
+/**
+ * Store the time range rules and rule count in EEPROM memory.
+ * @param rules Pointer to an array of TimeRangeRule to be stored.
+ * @param ruleCount The number of rules to store.
+ */
 void storeTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
   if (ruleCount > 255) {
     Serial.print("Error: Cannot store more than 255 time range rules in EEPROM.");
@@ -79,7 +84,7 @@ void storeTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
   EEPROM.write(EEPROM_TIME_RANGE_RULES_COUNT_ADDRESS, ruleCount);
 
   for (size_t i = 0; i < ruleCount; i++) {
-    int baseAddress = EEPROM_TIME_RANGE_RULES_START_ADDRESS + i * sizeof(TimeRangeRule);
+    int baseAddress = EEPROM_TIME_RANGE_RULES_START_ADDRESS + i * TIME_RANGE_RULE_BYTES;
 
     // Store each byte of the TimeRangeRule structure in EEPROM
     EEPROM.write(baseAddress, rules[i].weekDayMask);
@@ -108,7 +113,7 @@ void storeTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
 /**
  * Store the secret combination in EEPROM.
  * @param combination An array of 4 integers representing the secret combination digits
- * @note The combination is not validated here, so it may contain invalid values (e.g., digits outside the range 0-9). The caller should validate the combination before calling this function.
+ * @note Does not check whether the combination is valid. Setting an invalid combination allows starting the alarm in configuration mode.
  */
 void storeSecretCombinationEEPROM(const std::array<int, 4>& combination) {
   for (int i = 0; i < 4; i++) {

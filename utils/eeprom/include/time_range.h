@@ -14,6 +14,7 @@ struct TimeRangeRule {
   uint32_t monthDayMask; // 1-31 days as bits
   uint16_t monthMask;    // 1-12 months as bits
 };
+#define TIME_RANGE_RULE_BYTES 11
 
 void setTimeRanges(const TimeRangeRule* rules, size_t ruleCount);
 
