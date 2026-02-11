@@ -105,6 +105,10 @@ void storeTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
   }
 }
 
+/**
+ * Store the secret combination in EEPROM.
+ * @param combination An array of 4 integers representing the secret combination digits
+ */
 void storeSecretCombinationEEPROM(const std::array<int, 4>& combination) {
   for (int i = 0; i < 4; i++) {
     uint8_t value = combination[i] % 10; // Ensure the value is between 0 and 9

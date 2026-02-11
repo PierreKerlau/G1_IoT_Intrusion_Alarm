@@ -8,15 +8,15 @@ void setupRTC(const TimeRangeRule* rules, size_t ruleCount) {
   rtc.settimezone(1); // Heure d'hiver UTC+1
 
   // The time only needs to be set once, or after a power loss
-  rtc.settime(
-      55, // seconds
-      59, // minutes
-      17, // hours
-      6,  // day
-      3,  // month
-      26, // year
-      5   // weekday (0-6, 0=Sunday)
-  );
+  // rtc.settime(
+  //     55, // seconds
+  //     59, // minutes
+  //     17, // hours
+  //     6,  // day
+  //     3,  // month
+  //     26, // year
+  //     5   // weekday (0-6, 0=Sunday)
+  // );
 
   timeRangeChecker.setTimeRanges(rules, ruleCount);
 }

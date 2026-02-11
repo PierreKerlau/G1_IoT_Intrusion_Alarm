@@ -40,6 +40,8 @@ int       tries     = 0; // Current number of tries
 
 AlarmState alarmState = AlarmState::INACTIVE; // Current state of the alarm system
 
+#define HEARTBEAT_TIME_INTERVAL 6 * 1000     // Interval for the LoRaWAN heartbeat in milliseconds
+unsigned long lastTimeHeartbeat         = 0; // Time when the last heartbeat was sent
 unsigned long alarmStartTime            = 0; // Time when the alarm was first triggered
 unsigned long alarmSuccessfulDisarmTime = 0; // Time when the alarm was successfully disarmed
 
@@ -134,6 +136,12 @@ AlarmState runSecurityLogic() {
   LoraPayload pkt = listenForPayload();
   if (pkt.type != PayloadType::UNKNOWN) { // Valid packet received
     processLoraPayload(pkt);              // Process configuration updates
+  }
+
+  // Send heartbeat message at regular intervals to indicate that the system is alive, with the current alarm state included in the payload data
+  if (millis() - lastTimeHeartbeat > HEARTBEAT_TIME_INTERVAL) {
+    lastTimeHeartbeat = millis();
+    loraSendHeartbeat(getAlarmState());
   }
 
   if (alarmState == AlarmState::INACTIVE) {
@@ -458,9 +466,12 @@ void setAlarmState(AlarmState newState) {
 
   AlarmState previousState = alarmState; // Temporarily store the previous state
   alarmState               = newState;   // Update state
-
   Serial.print("Alarm state changed: ");
   Serial.println(alarmStateToString(previousState) + " -> " + alarmStateToString(alarmState));
+
+  // Send a heartbeat when the state changes
+  lastTimeHeartbeat = millis();
+  loraSendHeartbeat(newState);
 
   // Handle actions on state change
   if (alarmState == AlarmState::INACTIVE) {

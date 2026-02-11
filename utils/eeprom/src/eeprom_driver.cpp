@@ -113,7 +113,7 @@ void storeTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
 /**
  * Store the secret combination in EEPROM.
  * @param combination An array of 4 integers representing the secret combination digits
- * @note The combination is not validated here, so it may contain invalid values (e.g., digits outside the range 0-9). The caller should validate the combination before calling this function.
+ * @note Does not check whether the combination is valid. Setting an invalid combination allows starting the alarm in configuration mode.
  */
 void storeSecretCombinationEEPROM(const std::array<int, 4>& combination) {
   for (int i = 0; i < 4; i++) {
