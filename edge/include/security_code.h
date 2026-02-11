@@ -37,6 +37,7 @@ AlarmState runSecurityLogic();
 AlarmState getAlarmState();
 void       setAlarmState(AlarmState newState);
 
-std::optional<AlarmState> parseAlarmState(uint8_t raw);
+std::optional<AlarmState>  parseAlarmState(uint8_t raw);
+std::optional<PayloadType> parsePayloadType(uint8_t raw);
 
 #endif // SECURITY_CODE_H

@@ -12,7 +12,6 @@ unsigned long lastTimeHeartbeat     = 0;
 
 /* TODO
 - Add LoRaWAN messages for state changes, especially for TRIGGERED, DISARMED and FAILED_DISARM states
-- Add functionality to change the secret combination via LoRaWAN
 
 - Connect to the Xiao ESP32S3 Sense
 - Add SD card logging for all events and state changes
@@ -21,7 +20,6 @@ unsigned long lastTimeHeartbeat     = 0;
 - Add error handling
 - Test system resilience for various edge cases (e.g., power loss, sensor failure, etc.)
 - Add comments and documentation for all functions and variables
-- Integrate with other system components as needed
 */
 
 void setup() {

@@ -59,6 +59,7 @@ void processLoraPayload(const LoraPayload& pkt);
 void setExpectedCombinationFromPacket(const LoraPayload& pkt);
 void setTimeRulesFromPacket(const LoraPayload& pkt);
 void setAlarmStateFromPacket(const LoraPayload& pkt);
+void setRTCTimeFromPacket(const LoraPayload& pkt, bool forceUpdate = false);
 
 void setupSecurity() {
   pinMode(BUTTON_BLUE_PIN, INPUT_PULLUP);
@@ -131,8 +132,8 @@ void setupSecurity() {
  */
 AlarmState runSecurityLogic() {
   LoraPayload pkt = listenForPayload();
-  if (pkt.id != 0) {         // Valid packet received
-    processLoraPayload(pkt); // Process configuration updates
+  if (pkt.type != PayloadType::UNKNOWN) { // Valid packet received
+    processLoraPayload(pkt);              // Process configuration updates
   }
 
   if (alarmState == AlarmState::INACTIVE) {
@@ -143,6 +144,7 @@ AlarmState runSecurityLogic() {
     if (!isMonitoringTime()) {
       setAlarmState(AlarmState::INACTIVE);
     } else if (checkMotion()) { // Motion detected, trigger alarm
+      Serial.println("[MOTION] Motion detected, triggering alarm!");
       playMotionSound(BUZZER_PIN);
       setAlarmState(AlarmState::TRIGGERED);
       alarmStartTime = millis(); // Start the disarm timer
@@ -253,11 +255,6 @@ void setTimeRulesFromPacket(const LoraPayload& pkt) {
 
   TimeRangeRule rules[ruleCount];
   for (size_t i = 0; i < ruleCount; i++) {
-    TimeRangeRule rule;
-    uint8_t       weekDayMask;  // 0-6 (0-Sunday, 1-Monday, ... , 6-Saturday)
-    uint32_t      hourMask;     // 0-23 hours as bits
-    uint32_t      monthDayMask; // 1-31 days as bits
-    uint16_t      monthMask;    // 1-12 months as bits
     TimeRangeRule rule = {
         .weekDayMask  = pkt.data[i * sizeof(TimeRangeRule)],
         .hourMask     = (pkt.data[i * sizeof(TimeRangeRule) + 1] << 24) | (pkt.data[i * sizeof(TimeRangeRule) + 2] << 16) | (pkt.data[i * sizeof(TimeRangeRule) + 3] << 8) | pkt.data[i * sizeof(TimeRangeRule) + 4],
@@ -290,7 +287,7 @@ void setAlarmStateFromPacket(const LoraPayload& pkt) {
  * @param pkt The LoRa payload containing the timestamp.
  * @param forceUpdate Whether to check for a time delay before setting the RTC time. Set to true to force update without delay check.
  */
-void setRTCTimeFromPacket(const LoraPayload& pkt, bool forceUpdate = false) {
+void setRTCTimeFromPacket(const LoraPayload& pkt, bool forceUpdate) {
   // TODO: Test
   if (pkt.ts > MINIMUM_UNIX_TIME && pkt.ts < MAXIMUM_UNIX_TIME) {
     uint32_t rtcUnixTime = getCurrentUnixTime();
@@ -431,7 +428,7 @@ void updateLedColor() {
   if (alarmState == AlarmState::INACTIVE) {
     leds.setColorHSB(0, 0, LED_SATURATION, LED_BRIGHTNESS_INACTIVE); // Inactive state, LED off
   } else {
-    float hue;
+    float hue = 0;
 
     switch (alarmState) {
     case AlarmState::MONITORING:    hue = LED_HUE_MONITORING; break;
@@ -465,8 +462,6 @@ void setAlarmState(AlarmState newState) {
   Serial.print("Alarm state changed: ");
   Serial.println(alarmStateToString(previousState) + " -> " + alarmStateToString(alarmState));
 
-  // TODO: Add LoRaWAN messages for state changes, especially for TRIGGERED, DISARMED and FAILED_DISARM states
-
   // Handle actions on state change
   if (alarmState == AlarmState::INACTIVE) {
     updateLedColor();
@@ -488,7 +483,6 @@ void setAlarmState(AlarmState newState) {
   } else if (alarmState == AlarmState::DISARMED) {
     updateLedColor();
     alarmSuccessfulDisarmTime = millis(); // Start the timer to reset the system after a successful disarm
-    // TODO: Send LoRaWAN message to notify successful disarm
     playGoodCombinationSound(BUZZER_PIN);
     resetBlinking();
     startSuccessAnimation(); // Initialize success animation variables
@@ -499,7 +493,6 @@ void setAlarmState(AlarmState newState) {
     resetBlinking();
   } else if (alarmState == AlarmState::CONFIGURATION) {
     updateLedColor();
-    // TODO: Handle configuration mode
   }
 }
 
@@ -539,5 +532,23 @@ std::optional<AlarmState> parseAlarmState(uint8_t raw) {
   case 4:  return AlarmState::FAILED_DISARM;
   case 5:  return AlarmState::CONFIGURATION;
   default: return std::nullopt; // Invalid value
+  }
+}
+
+/**
+ * Convert a uint8_t potentially representing an PayloadType into its enum value or return nullopt
+ * @param raw The raw uint8_t value to convert
+ * @return PayloadType correspondig to the raw value or nullopt
+ */
+std::optional<PayloadType> parsePayloadType(uint8_t raw) {
+  switch (raw) {
+  case 0x00: return PayloadType::UNKNOWN;
+  case 0x01: return PayloadType::EDGE_HEARTBEAT;
+  case 0x02: return PayloadType::MOTION_STATE;
+  case 0x11: return PayloadType::SET_COMBINATION;
+  case 0x12: return PayloadType::SET_TIME_RANGE;
+  case 0x13: return PayloadType::SET_ALARM_STATE;
+  case 0x14: return PayloadType::SET_RTC_TIME;
+  default:   return std::nullopt; // Invalid value
   }
 }

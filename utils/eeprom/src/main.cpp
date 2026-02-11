@@ -18,13 +18,20 @@ void setup() {
   Serial.println(F("--- Initialising EEPROM writer ---"));
 
   // Set an incorrect secret combination for testing
-  Serial.println(F("Setting secret combination to {255, 255, 255, 255}"));
-  std::array<int, 4> secretCombination = {255, 255, 255, 255};
+  std::array<int, 4> secretCombination = {1, 2, 3, 4};
+  Serial.println("Setting secret combination to {" + String(secretCombination[0]) + ", " + String(secretCombination[1]) + ", " + String(secretCombination[2]) + ", " + String(secretCombination[3]) + "} for testing purposes");
   storeSecretCombinationEEPROM(secretCombination);
 
   // Reset time range rule count to 0 (no active time ranges)
-  size_t ruleCount = 0;
-  storeTimeRangeRulesEEPROM(nullptr, ruleCount);
+  size_t        ruleCount = 1;
+  TimeRangeRule rules[1];
+  rules[0] = {
+      .weekDayMask  = 0b1111111,                         // Active all days of the week
+      .hourMask     = 0b111111111111111111111111,        // Active all hours of the day
+      .monthDayMask = 0b1111111111111111111111111111111, // Active all days of the month
+      .monthMask    = 0b111111111111,                    // Active all months of the year
+  };
+  storeTimeRangeRulesEEPROM(rules, ruleCount);
 
   Serial.println(F("--- EEPROM writer setup complete ---"));
   Serial.println(F("--- Reading written EEPROM data ---"));

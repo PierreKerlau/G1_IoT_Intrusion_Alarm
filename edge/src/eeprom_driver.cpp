@@ -13,13 +13,13 @@ EEPROMSetupData setupEEPROM() {
     uint8_t value             = EEPROM.read(EEPROM_SECRET_COMBINATION_ADDRESS + i);
     data.secretCombination[i] = value;
 
-    Serial.print("Read secret combination digit from EEPROM: ");
+    Serial.print("[EEPROM] Read secret combination digit from EEPROM: ");
     Serial.println(data.secretCombination[i]);
   }
 
   // Read number of time range rules
   data.timeRangeRulesCount = EEPROM.read(EEPROM_TIME_RANGE_RULES_COUNT_ADDRESS);
-  Serial.print("Read time range rules count from EEPROM: ");
+  Serial.print("[EEPROM] Read time range rules count from EEPROM: ");
   Serial.println(data.timeRangeRulesCount);
 
   return data;
@@ -42,10 +42,10 @@ void retrieveTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
   uint8_t storedRuleCount = EEPROM.read(EEPROM_TIME_RANGE_RULES_COUNT_ADDRESS);
 
   if (storedRuleCount > ruleCount) {
-    Serial.println("Warning: Provided ruleCount (" + String(ruleCount) + ") does not match the number of rules stored in EEPROM (" + String(storedRuleCount) + "). Only the first " + String(ruleCount) + " rules will be retrieved.");
+    Serial.println("[EEPROM] Warning: Provided ruleCount (" + String(ruleCount) + ") does not match the number of rules stored in EEPROM (" + String(storedRuleCount) + "). Only the first " + String(ruleCount) + " rules will be retrieved.");
   } else if (storedRuleCount < ruleCount) {
     ruleCount = storedRuleCount; // Adjust ruleCount to the actual number of rules stored in EEPROM
-    Serial.println("Warning: Provided ruleCount (" + String(ruleCount) + ") is larger than the number of rules stored in EEPROM (" + String(storedRuleCount) + "). Only the first " + String(storedRuleCount) + " rules will be retrieved, the rest of the rules array will not be modified.");
+    Serial.println("[EEPROM] Warning: Provided ruleCount (" + String(ruleCount) + ") is larger than the number of rules stored in EEPROM (" + String(storedRuleCount) + "). Only the first " + String(storedRuleCount) + " rules will be retrieved, the rest of the rules array will not be modified.");
   }
 
   for (size_t i = 0; i < ruleCount; i++) {
@@ -58,7 +58,7 @@ void retrieveTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
     rules[i].monthDayMask = (EEPROM.read(baseAddress + 5) << 24) | (EEPROM.read(baseAddress + 6) << 16) | (EEPROM.read(baseAddress + 7) << 8) | EEPROM.read(baseAddress + 8);
     rules[i].monthMask    = (EEPROM.read(baseAddress + 9) << 8) | EEPROM.read(baseAddress + 10);
 
-    Serial.print("Retrieved time range rule from EEPROM: weekDayMask=");
+    Serial.print("[EEPROM] Retrieved time range rule from EEPROM: weekDayMask=");
     Serial.print(rules[i].weekDayMask, BIN);
     Serial.print(", hourMask=");
     Serial.print(rules[i].hourMask, BIN);
@@ -71,7 +71,7 @@ void retrieveTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
 
 void storeTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
   if (ruleCount > 255) {
-    Serial.print("Error: Cannot store more than 255 time range rules in EEPROM.");
+    Serial.print("[EEPROM] Error: Cannot store more than 255 time range rules in EEPROM.");
     ruleCount = 255; // Adjust ruleCount to the maximum allowed
   }
 
@@ -94,7 +94,7 @@ void storeTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
     EEPROM.write(baseAddress + 9, (rules[i].monthMask >> 8) & 0xFF);
     EEPROM.write(baseAddress + 10, rules[i].monthMask & 0xFF);
 
-    Serial.print("Stored time range rule in EEPROM: weekDayMask=");
+    Serial.print("[EEPROM] Stored time range rule in EEPROM: weekDayMask=");
     Serial.print(rules[i].weekDayMask, BIN);
     Serial.print(", hourMask=");
     Serial.print(rules[i].hourMask, BIN);
@@ -110,7 +110,7 @@ void storeSecretCombinationEEPROM(const std::array<int, 4>& combination) {
     uint8_t value = combination[i] % 10; // Ensure the value is between 0 and 9
     EEPROM.write(EEPROM_SECRET_COMBINATION_ADDRESS + i, value);
 
-    Serial.print("Stored secret combination digit in EEPROM: ");
+    Serial.print("[EEPROM] Stored secret combination digit in EEPROM: ");
     Serial.println(value);
   }
 }

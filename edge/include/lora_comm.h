@@ -3,18 +3,21 @@
 
 #include "rtc.h"
 #include <Arduino.h>
+#include <optional>
 
-// Forward declaration to avoid circular dependency
+// Forward declarations to avoid circular dependency
 enum class AlarmState;
+enum class PayloadType : uint8_t;
+std::optional<PayloadType> parsePayloadType(uint8_t raw);
 
 enum class PayloadType : uint8_t {
-  UNKNOWN         = 0x00, // Bad data
-  EDGE_HEARTBEAT  = 0x01, // Edge -> Heartbeat message sent periodically to indicate that the system is alive, with the current alarm state included in the payload data
-  MOTION_STATE    = 0x02, // Edge -> Message sent when motion is detected, with the motion state (e.g., detected or not detected) included in the payload data
-  SET_COMBINATION = 0x11, // Broker -> Set the expected combination
-  SET_TIME_RANGE  = 0x12, // Broker -> Set the monitored time range
-  SET_ALARM_STATE = 0x13, // Broker -> Set the alarm state
-  SET_RTC_TIME    = 0x14, // Broker -> Set the RTC time
+  UNKNOWN         = 0x00, // 0: Bad data
+  EDGE_HEARTBEAT  = 0x01, // 1: Edge    -> Heartbeat message sent periodically to indicate that the system is alive, with the current alarm state included in the payload data
+  MOTION_STATE    = 0x02, // 2: Edge    -> Message sent when motion is detected, with the motion state (e.g., detected or not detected) included in the payload data
+  SET_COMBINATION = 0x11, // 17: Broker -> Set the expected combination
+  SET_TIME_RANGE  = 0x12, // 18: Broker -> Set the monitored time range
+  SET_ALARM_STATE = 0x13, // 19: Broker -> Set the alarm state
+  SET_RTC_TIME    = 0x14, // 20: Broker -> Set the RTC time
 };
 
 #define MAX_PAYLOAD_DATA_SIZE 200
