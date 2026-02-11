@@ -50,7 +50,7 @@ void retrieveTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
 
   for (size_t i = 0; i < ruleCount; i++) {
     // Calculate the base address for the current rule
-    int baseAddress = EEPROM_TIME_RANGE_RULES_START_ADDRESS + i * sizeof(TimeRangeRule);
+    int baseAddress = EEPROM_TIME_RANGE_RULES_START_ADDRESS + i * TIME_RANGE_RULE_BYTES;
 
     // Read each byte of the TimeRangeRule structure from EEPROM and reconstruct the structure
     rules[i].weekDayMask  = EEPROM.read(baseAddress);
@@ -79,7 +79,7 @@ void storeTimeRangeRulesEEPROM(TimeRangeRule* rules, size_t& ruleCount) {
   EEPROM.write(EEPROM_TIME_RANGE_RULES_COUNT_ADDRESS, ruleCount);
 
   for (size_t i = 0; i < ruleCount; i++) {
-    int baseAddress = EEPROM_TIME_RANGE_RULES_START_ADDRESS + i * sizeof(TimeRangeRule);
+    int baseAddress = EEPROM_TIME_RANGE_RULES_START_ADDRESS + i * TIME_RANGE_RULE_BYTES;
 
     // Store each byte of the TimeRangeRule structure in EEPROM
     EEPROM.write(baseAddress, rules[i].weekDayMask);

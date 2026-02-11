@@ -71,10 +71,10 @@ bool TimeRangeChecker::isMonitoringTime(iarduino_RTC& rtc) {
     return false;
   }
 
-  currentTimeAsRange.weekDayMask  = 1 << weekDay;  // Get weekday (0-6) and convert to bitmask
-  currentTimeAsRange.hourMask     = 1 << hour;     // Get hour (0-23) and convert to bitmask
-  currentTimeAsRange.monthDayMask = 1 << monthDay; // Get day of month (1-31) and convert to bitmask
-  currentTimeAsRange.monthMask    = 1 << month;    // Get month (1-12) and convert to bitmask
+  currentTimeAsRange.weekDayMask  = 1 << (7 - 1 - weekDay); // Get weekday (0-6) and convert to bitmask
+  currentTimeAsRange.hourMask     = 1 << (24 - 1 - hour);   // Get hour (0-23) and convert to bitmask
+  currentTimeAsRange.monthDayMask = 1 << (31 - monthDay);   // Get day of month (1-31) and convert to bitmask
+  currentTimeAsRange.monthMask    = 1 << (12 - month);      // Get month (1-12) and convert to bitmask
 
 #ifdef DEBUG
   Serial.print("[TIME_RULES] Current time: ");

@@ -274,23 +274,38 @@ bool hexToPayloadBE(const String& hex, LoraPayload& pkt) {
   pkt.length = (uint8_t)strtoul(hex.substring(offset, offset + 2).c_str(), nullptr, 16);
   offset += 2;
 
-  if (hex.length() < (1 + 4 + 1 + 1 + 4 + pkt.length) * 2) return false; // Check expected length based on the length field
+  if (hex.length() < (1 + 4 + 1 + 1 + 4 + pkt.length) * 2) {
+    Serial.println("[LoRa] Invalid hex length: " + String(hex.length()) + " (expected at least " + String((1 + 4 + 1 + 1 + 4 + pkt.length) * 2) + ")");
+    return false; // Check expected length based on the length field
+  }
 
+  // Serial.print("[LoRa] Data: ");
   for (size_t i = 0; i < pkt.length; i++) {
+    // Serial.print(hex.substring(offset, offset + 2));
     pkt.data[i] = (uint8_t)strtoul(hex.substring(offset, offset + 2).c_str(), nullptr, 16);
     offset += 2;
   }
+  // Serial.println();
 
   pkt.hmac = parseU32BE(hex, offset);
+  // Serial.println(pkt.hmac, HEX);
   offset += 8;
 
   return true;
 }
 
 uint32_t computeHMAC(const LoraPayload& pkt) {
-  String data = String(pkt.id) + String(pkt.ts) + String(static_cast<uint8_t>(pkt.type)) + String(pkt.length) + String((char*)pkt.data, pkt.length);
+  String data = String(pkt.id) + String(pkt.ts) + String(static_cast<uint8_t>(pkt.type)) + String(pkt.length);
+  for (size_t i = 0; i < pkt.length; i++) {
+    String byteStr = String(pkt.data[i], 16);
+    byteStr.toUpperCase();
+    for (size_t j = 0; j < 2 - byteStr.length(); j++) {
+      data += "0";
+    }
+    data += byteStr;
+  }
 
-  // Serial.println("[HMAC] Computing HMAC for payload data (raw): " + String(pkt.id) + "," + String(pkt.ts) + "," + String(static_cast<uint8_t>(pkt.type)) + "," + String(pkt.length) + "," + String((char*)pkt.data, pkt.length));
+  // Serial.println("[HMAC] Computing HMAC for payload data (raw): " + String(pkt.id) + "," + String(pkt.ts) + "," + String(static_cast<uint8_t>(pkt.type)) + "," + String(pkt.length));
   // Serial.println("[HMAC] Computing HMAC for payload data (data): " + data);
   uint32_t hmac = 5381; // Initialize with a cryptographic magic number
 
@@ -308,11 +323,12 @@ uint32_t computeHMAC(const LoraPayload& pkt) {
 
 bool verifyHMAC(const LoraPayload& pkt) {
   uint32_t computedHMAC = computeHMAC(pkt);
+  // Serial.println("[HMAC] Verifying HMAC: computed=" + String(computedHMAC) + ", received=" + String(pkt.hmac));
   return computedHMAC == pkt.hmac;
 }
 
 void printPayload(const LoraPayload& pkt) {
-  Serial.println(F("[LoRa] Payload received:"));
+  Serial.println(F("[LoRa] Payload:"));
 
   Serial.print("  ID: ");
   Serial.println(pkt.id);
@@ -331,5 +347,10 @@ void printPayload(const LoraPayload& pkt) {
   Serial.print("  Data: ");
   Serial.println(dataStr);
   Serial.print("  HMAC: ");
-  Serial.println(pkt.hmac, HEX);
+  String hmacStr = String(pkt.hmac, HEX);
+  hmacStr.toUpperCase();
+  for (size_t i = hmacStr.length(); i < 8; i++) {
+    hmacStr = "0" + hmacStr; // Pad with leading zeros if necessary
+  }
+  Serial.println(hmacStr);
 }

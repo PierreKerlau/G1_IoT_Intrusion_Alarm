@@ -264,7 +264,14 @@ LoraPayload jsonToPayload(const String& json) {
   if (pos >= 0) {
     int    end = json.indexOf(",", pos);
     String val = json.substring(pos + 5, end);
-    pkt.ts     = (uint32_t)strtol(val.c_str(), nullptr, 10);
+    uint64_t tsValue = strtoull(val.c_str(), nullptr, 10);
+    if (tsValue > 0xFFFFFFFFu) {
+      tsValue /= 1000; // Accept ms timestamps and convert to seconds.
+    }
+    if (tsValue > 0xFFFFFFFFu) {
+      tsValue = 0xFFFFFFFFu;
+    }
+    pkt.ts = (uint32_t)tsValue;
   }
 
   // Extract type
@@ -352,6 +359,7 @@ String payloadToHex(const LoraPayload& pkt) {
 }
 
 void printPayload(const LoraPayload& pkt) {
+#ifdef DEBUG_SERIAL_PRINT
   Serial.println(F("[LoRa] Payload received:"));
 
   Serial.print("  ID: ");
@@ -366,4 +374,5 @@ void printPayload(const LoraPayload& pkt) {
   Serial.println(pkt.data);
   Serial.print("  HMAC: ");
   Serial.println(pkt.hmac);
+#endif // DEBUG_SERIAL_PRINT
 }

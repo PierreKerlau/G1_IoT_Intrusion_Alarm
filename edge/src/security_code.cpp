@@ -244,22 +244,22 @@ void setExpectedCombinationFromPacket(const LoraPayload& pkt) {
 
 void setTimeRulesFromPacket(const LoraPayload& pkt) {
   // TODO: Test
-  size_t ruleCount = (pkt.length - (pkt.length % sizeof(TimeRangeRule))) / sizeof(TimeRangeRule);
-  if (ruleCount * sizeof(TimeRangeRule) > MAX_PAYLOAD_DATA_SIZE) {
-    Serial.println("[SET_RULES] Error: Rule count is higher than the maximum possible data size. Length (bytes)=" + String(ruleCount * sizeof(TimeRangeRule)) + ", MAX_PAYLOAD_DATA_SIZE=" + String(MAX_PAYLOAD_DATA_SIZE));
+  size_t ruleCount = (pkt.length - (pkt.length % TIME_RANGE_RULE_BYTES)) / TIME_RANGE_RULE_BYTES;
+  if (ruleCount * TIME_RANGE_RULE_BYTES > MAX_PAYLOAD_DATA_SIZE) {
+    Serial.println("[SET_RULES] Error: Rule count is higher than the maximum possible data size. Length (bytes)=" + String(ruleCount * TIME_RANGE_RULE_BYTES) + ", MAX_PAYLOAD_DATA_SIZE=" + String(MAX_PAYLOAD_DATA_SIZE));
     return; // Do not set any rules
   }
-  if (ruleCount == 0 || pkt.length % sizeof(TimeRangeRule) != 0) {
-    Serial.println("[SET_RULES] Warning: Payload length is not a multiple of TimeRangeRule size. Length=" + String(pkt.length) + ", sizeof(TimeRangeRule)=" + String(sizeof(TimeRangeRule)));
+  if (ruleCount == 0 || pkt.length % TIME_RANGE_RULE_BYTES != 0) {
+    Serial.println("[SET_RULES] Warning: Payload length is not a multiple of TimeRangeRule size. Length=" + String(pkt.length) + ", TIME_RANGE_RULE_BYTES=" + String(TIME_RANGE_RULE_BYTES));
   }
 
   TimeRangeRule rules[ruleCount];
   for (size_t i = 0; i < ruleCount; i++) {
     TimeRangeRule rule = {
-        .weekDayMask  = pkt.data[i * sizeof(TimeRangeRule)],
-        .hourMask     = (pkt.data[i * sizeof(TimeRangeRule) + 1] << 24) | (pkt.data[i * sizeof(TimeRangeRule) + 2] << 16) | (pkt.data[i * sizeof(TimeRangeRule) + 3] << 8) | pkt.data[i * sizeof(TimeRangeRule) + 4],
-        .monthDayMask = (pkt.data[i * sizeof(TimeRangeRule) + 5] << 24) | (pkt.data[i * sizeof(TimeRangeRule) + 6] << 16) | (pkt.data[i * sizeof(TimeRangeRule) + 7] << 8) | pkt.data[i * sizeof(TimeRangeRule) + 8],
-        .monthMask    = (pkt.data[i * sizeof(TimeRangeRule) + 9] << 8) | pkt.data[i * sizeof(TimeRangeRule) + 10],
+        .weekDayMask  = pkt.data[i * TIME_RANGE_RULE_BYTES],
+        .hourMask     = (pkt.data[i * TIME_RANGE_RULE_BYTES + 1] << 24) | (pkt.data[i * TIME_RANGE_RULE_BYTES + 2] << 16) | (pkt.data[i * TIME_RANGE_RULE_BYTES + 3] << 8) | pkt.data[i * TIME_RANGE_RULE_BYTES + 4],
+        .monthDayMask = (pkt.data[i * TIME_RANGE_RULE_BYTES + 5] << 24) | (pkt.data[i * TIME_RANGE_RULE_BYTES + 6] << 16) | (pkt.data[i * TIME_RANGE_RULE_BYTES + 7] << 8) | pkt.data[i * TIME_RANGE_RULE_BYTES + 8],
+        .monthMask    = (pkt.data[i * TIME_RANGE_RULE_BYTES + 9] << 8) | pkt.data[i * TIME_RANGE_RULE_BYTES + 10],
     };
 
     rules[i] = rule;

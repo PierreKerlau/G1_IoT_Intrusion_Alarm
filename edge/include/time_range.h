@@ -15,6 +15,7 @@ struct TimeRangeRule {
   uint32_t monthDayMask; // 1-31 days as bits
   uint16_t monthMask;    // 1-12 months as bits
 };
+#define TIME_RANGE_RULE_BYTES 11
 
 /**
  * Class responsible for checking if the current time falls within any of the defined time ranges.
