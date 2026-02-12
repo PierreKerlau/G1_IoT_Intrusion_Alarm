@@ -24,7 +24,6 @@ const int    LED_CLK_PIN  = 8;
 const int    LED_DATA_PIN = 9;
 ChainableLED leds(LED_CLK_PIN, LED_DATA_PIN, NUM_LEDS);
 
-// TODO: Add a way to change the secret combination from LoRaWAN
 // Combination and cursor position variables
 std::array<int, 4> currentCombination  = {0, 0, 0, 0};     // Current combination entered by the user (default to 0000)
 std::array<int, 4> expectedCombination = {-1, -1, -1, -1}; // Correct combination to disarm the system. Initialize with -1 to indicate that it has not been set yet.
@@ -40,14 +39,14 @@ int       tries     = 0; // Current number of tries
 
 AlarmState alarmState = AlarmState::INACTIVE; // Current state of the alarm system
 
-#define HEARTBEAT_TIME_INTERVAL 6 * 1000     // Interval for the LoRaWAN heartbeat in milliseconds
+#define HEARTBEAT_TIME_INTERVAL 8 * 1000     // Interval for the LoRaWAN heartbeat in milliseconds
 unsigned long lastTimeHeartbeat         = 0; // Time when the last heartbeat was sent
 unsigned long alarmStartTime            = 0; // Time when the alarm was first triggered
 unsigned long alarmSuccessfulDisarmTime = 0; // Time when the alarm was successfully disarmed
 
-const unsigned long MAX_DISARM_TIME                 = 15 * 1000; // Maximum time to disarm the system in milliseconds
-const unsigned long ALARM_SUCCESSFUL_DISARM_TIMEOUT = 10 * 1000; // Maximum time before resetting the system after a successful disarm in milliseconds
-const unsigned long ALARM_TIMEOUT                   = 60 * 1000; // Maximum time for an alarm in milliseconds
+const unsigned long MAX_DISARM_TIME                 = 30 * 1000; // Maximum time to disarm the system in milliseconds
+const unsigned long ALARM_SUCCESSFUL_DISARM_TIMEOUT = 30 * 1000; // Maximum time before resetting the system after a successful disarm in milliseconds
+const unsigned long ALARM_TIMEOUT                   = 30 * 1000; // Maximum time for an alarm in milliseconds
 
 int releasePin = -1; // Pin to check for release after button press, -1 if not waiting for any button release
 
@@ -161,7 +160,6 @@ AlarmState runSecurityLogic() {
     // Check if the user has exceeded the maximum number of tries or disarm time
     if ((tries >= MAX_TRIES) || (millis() - alarmStartTime > MAX_DISARM_TIME)) {
       // Too late to disarm, alarm was triggered
-      // TODO: play alarm sound and animation + send alert via LoRaWAN
       clearScreen();
       setAlarmState(AlarmState::FAILED_DISARM);
       return alarmState;
@@ -198,15 +196,13 @@ AlarmState runSecurityLogic() {
       setAlarmState(AlarmState::INACTIVE);
     }
   } else if (alarmState == AlarmState::CONFIGURATION) {
-    // TODO: Configure the system (e.g., set time, change combination, etc.)
+    // No actions here, wait for a SET_STATE command through LoRa
   }
   return alarmState;
 }
 
 // --- LoraWAN PAYLOAD PROCESSING ---
 void processLoraPayload(const LoraPayload& pkt) {
-  // TODO: Test
-
   // Update RTC (only force update if payload type is SET_RTC_TIME)
   bool forceTimeUpdate = pkt.type == PayloadType::SET_RTC_TIME;
   setRTCTimeFromPacket(pkt, forceTimeUpdate);
@@ -226,7 +222,6 @@ void processLoraPayload(const LoraPayload& pkt) {
 }
 
 void setExpectedCombinationFromPacket(const LoraPayload& pkt) {
-  // TODO: Test
   if (pkt.length >= 4) { // Combination config: digit1, digit2, digit3, digit4
     std::array<int, 4> newCombination;
     bool               validCombination = true;
@@ -244,14 +239,13 @@ void setExpectedCombinationFromPacket(const LoraPayload& pkt) {
     if (validCombination) {
       storeSecretCombinationEEPROM(newCombination);
       expectedCombination = newCombination;
-      // TODO: Remove for security
+      // TODO: Remove in production environment for security
       Serial.println("[PSWD] Secret combination updated via LoRaWAN to: " + String(expectedCombination[0]) + String(expectedCombination[1]) + String(expectedCombination[2]) + String(expectedCombination[3]));
     }
   }
 }
 
 void setTimeRulesFromPacket(const LoraPayload& pkt) {
-  // TODO: Test
   size_t ruleCount = (pkt.length - (pkt.length % TIME_RANGE_RULE_BYTES)) / TIME_RANGE_RULE_BYTES;
   if (ruleCount * TIME_RANGE_RULE_BYTES > MAX_PAYLOAD_DATA_SIZE) {
     Serial.println("[SET_RULES] Error: Rule count is higher than the maximum possible data size. Length (bytes)=" + String(ruleCount * TIME_RANGE_RULE_BYTES) + ", MAX_PAYLOAD_DATA_SIZE=" + String(MAX_PAYLOAD_DATA_SIZE));
@@ -278,7 +272,6 @@ void setTimeRulesFromPacket(const LoraPayload& pkt) {
 }
 
 void setAlarmStateFromPacket(const LoraPayload& pkt) {
-  // TODO: Test
   if (pkt.length >= 1) {
     if (auto newState = parseAlarmState(pkt.data[0])) {
       setAlarmState(*newState);
@@ -296,7 +289,6 @@ void setAlarmStateFromPacket(const LoraPayload& pkt) {
  * @param forceUpdate Whether to check for a time delay before setting the RTC time. Set to true to force update without delay check.
  */
 void setRTCTimeFromPacket(const LoraPayload& pkt, bool forceUpdate) {
-  // TODO: Test
   if (pkt.ts > MINIMUM_UNIX_TIME && pkt.ts < MAXIMUM_UNIX_TIME) {
     uint32_t rtcUnixTime = getCurrentUnixTime();
     if (forceUpdate || pkt.ts < rtcUnixTime - MAX_TIME_DELAY || pkt.ts > rtcUnixTime + MAX_TIME_DELAY) {

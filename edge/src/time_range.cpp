@@ -58,15 +58,10 @@ bool TimeRangeChecker::isMonitoringTime(iarduino_RTC& rtc) {
 #endif // DEBUG
 
   if (weekDay > 6 || hour > 23 || monthDay == 0 || monthDay > 31 || month == 0 || month > 12) {
-    Serial.print("[TIME_RULES] Invalid time values from RTC: weekday=");
-    Serial.print(weekDay);
-    Serial.print(", hour=");
-    Serial.print(hour);
-    Serial.print(", day=");
-    Serial.print(monthDay);
-    Serial.print(", month=");
-    Serial.print(month);
-    Serial.println();
+    Serial.print("[TIME_RULES] Invalid time values from RTC: weekday=" + String(weekDay));
+    Serial.print(", hour=" + String(hour));
+    Serial.print(", day=" + String(monthDay));
+    Serial.println(", month=" + String(month));
 
     return false;
   }

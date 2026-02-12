@@ -20,43 +20,19 @@ This project implements a complete intrusion alarm system with three main compon
 - **Visual & Audio Feedback**: LED colors and buzzer tones indicate system status
 - **Real-Time Clock**: Accurate timekeeping for time-based monitoring rules
 
+## Contributors
+
+- [Samuel Deschamps](https://github.com/Sunslihgt)
+- [Pierre Kerlau](https://github.com/PierreKerlau)
+
 ## Project Structure
 
 ```
 G1_IoT_Intrusion_Alarm/
-├── edge/                       # Edge device (alarm system)
-│   ├── src/
-│   │   ├── main.cpp           # Main program loop
-│   │   ├── security_code.cpp  # Security logic and state management
-│   │   ├── lora_comm.cpp      # LoRa communication
-│   │   ├── eeprom_driver.cpp  # EEPROM operations
-│   │   ├── rtc.cpp            # Real-time clock
-│   │   ├── time_range.cpp     # Time window checking
-│   │   ├── motion_detector.cpp # PIR sensor interface
-│   │   ├── security_animation.cpp # Visual feedback
-│   │   └── security_audio.cpp # Audio feedback
-│   ├── include/               # Header files
-│   └── readme.md             # Edge device documentation
-│
-├── gateway/                   # Gateway (LoRa-Serial bridge)
-│   ├── src/
-│   │   └── main.cpp          # Bridge logic and conversion
-│   ├── include/
-│   │   └── main.h            # Type definitions
-│   └── readme.md             # Gateway documentation
-│
-├── utils/
-│   └── eeprom/               # EEPROM configuration utility
-│       ├── src/
-│       │   ├── main.cpp      # EEPROM writer
-│       │   └── eeprom_driver.cpp
-│       ├── include/
-│       │   ├── eeprom_driver.h
-│       │   └── time_range.h
-│       └── readme.md         # Utility documentation
-│
-├── platformio.ini            # PlatformIO configuration
-└── readme.md                 # This file
+├── edge/               # Edge device (alarm system)
+├── gateway/            # Gateway (LoRa-Serial bridge)
+├── utils/              # Tools useful for the project
+│   └── eeprom/         # EEPROM configuration utility
 ```
 
 ## Hardware Requirements
@@ -311,7 +287,3 @@ The project uses clang-format with configuration in .clang-format:
 - [ ] Camera integration (Xiao ESP32S3 Sense)
 - [ ] Multiple node support in Node-RED using DEVICE ID
 - [ ] Battery backup support
-
-## Contributors
-
-Group 1 - IoT Intrusion Alarm Project

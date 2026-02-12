@@ -5,9 +5,9 @@ TimeRangeChecker timeRangeChecker = TimeRangeChecker();
 
 void setupRTC(const TimeRangeRule* rules, size_t ruleCount) {
   rtc.begin();
-  rtc.settimezone(1); // Heure d'hiver UTC+1
+  rtc.settimezone(1); // France UTC+1
 
-  // The time only needs to be set once, or after a power loss
+  // There is no need to set the time as it will automatically be updated if a LoRa payload is received.
   // rtc.settime(
   //     55, // seconds
   //     59, // minutes

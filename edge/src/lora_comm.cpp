@@ -4,7 +4,7 @@ static const char* LORA_RFCFG_CMD = "AT+TEST=RFCFG,868.1,SF7,125,8,15,14,ON,OFF,
 
 static const uint8_t LORA_NODE_ID = 1; // TODO: Configurable ID
 
-const String HMAC_KEY = "b5df4g1ds14b1ds4fdsv5dsfvdsbds"; // TODO: Use a proper secret key management strategy
+const String HMAC_KEY = "b5df4g1ds14b1ds4fdsv5dsfvdsbds"; // TODO: Use a proper secret key management strategy for production environments
 
 // Store the state of the LoRa module initialization
 bool lora_working = false;
@@ -39,8 +39,6 @@ void setupLora() {
 
   Serial.println(F("[LoRa] Module initialized in TEST mode."));
 }
-
-// TODO: Retry lora begin with an interval
 
 /**
  * Listen for incoming LoRa payloads.

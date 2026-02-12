@@ -1,6 +1,7 @@
 #include "main.h"
 
-// #define DEBUG_SERIAL_PRINT
+// #define DEBUG_SERIAL_PRINT // Print computed data to Serial for debugging
+// #define SEND_TEST_DATA     // Send test data through LoRa at a regular interval
 
 // --- CONFIGURATION ---
 #define LORA_RX     8
@@ -47,27 +48,29 @@ void loop() {
   listenSerial();
   delay(50); // Small delay to avoid busy looping
 
-  //   if (millis() - lastTestConfigPayloadTime > TEST_CONFIG_PAYLOAD_INTERVAL) {
-  //     lastTestConfigPayloadTime = millis();
-  // #ifdef DEBUG_SERIAL_PRINT
-  //     Serial.println(F("Sending a test configuration payload..."));
-  // #endif // DEBUG_SERIAL_PRINT
+#ifdef SEND_TEST_DATA // Send test data through LoRa at a regular interval
+  if (millis() - lastTestConfigPayloadTime > TEST_CONFIG_PAYLOAD_INTERVAL) {
+    lastTestConfigPayloadTime = millis();
+#ifdef DEBUG_SERIAL_PRINT
+    Serial.println(F("Sending a test configuration payload..."));
+#endif // DEBUG_SERIAL_PRINT
 
-  //     // Send a test configuration payload every 10 seconds for testing purposes
-  //     LoraPayload pkt{
-  //         .id     = EXPECTED_ID,
-  //         .ts     = 123456, // Use current time in seconds as timestamp
-  //         .type   = PayloadType::CONFIGURATION,
-  //         .length = 4,
-  //         .data   = "DEADBEEF", // Example configuration data
-  //         .hmac   = "ABCD1234"  // Example HMAC, TODO: Compute real HMAC
-  //     };
-  //     String hex      = payloadToHex(pkt);
-  //     String loraLine = "AT+TEST=TXLRPKT,\"" + hex + "\"";
-  //     loraSerial.println(loraLine);
-  //     delay(300);
-  //     loraSerial.println("AT+TEST=RXLRPKT");
-  //   }
+    // Send a test configuration payload every 10 seconds for testing purposes
+    LoraPayload pkt{
+        .id     = EXPECTED_ID,
+        .ts     = 123456, // Use current time in seconds as timestamp
+        .type   = PayloadType::CONFIGURATION,
+        .length = 4,
+        .data   = "DEADBEEF", // Example configuration data
+        .hmac   = "ABCD1234"  // Example HMAC
+    };
+    String hex      = payloadToHex(pkt);
+    String loraLine = "AT+TEST=TXLRPKT,\"" + hex + "\"";
+    loraSerial.println(loraLine);
+    delay(300);
+    loraSerial.println("AT+TEST=RXLRPKT");
+  }
+#endif // SEND_TEST_DATA
 }
 
 /**
@@ -262,8 +265,8 @@ LoraPayload jsonToPayload(const String& json) {
   // Extract ts
   pos = json.indexOf("\"ts\":");
   if (pos >= 0) {
-    int    end = json.indexOf(",", pos);
-    String val = json.substring(pos + 5, end);
+    int      end     = json.indexOf(",", pos);
+    String   val     = json.substring(pos + 5, end);
     uint64_t tsValue = strtoull(val.c_str(), nullptr, 10);
     if (tsValue > 0xFFFFFFFFu) {
       tsValue /= 1000; // Accept ms timestamps and convert to seconds.
