@@ -46,7 +46,7 @@ unsigned long alarmSuccessfulDisarmTime = 0; // Time when the alarm was successf
 
 const unsigned long MAX_DISARM_TIME                 = 30 * 1000; // Maximum time to disarm the system in milliseconds
 const unsigned long ALARM_SUCCESSFUL_DISARM_TIMEOUT = 30 * 1000; // Maximum time before resetting the system after a successful disarm in milliseconds
-const unsigned long ALARM_TIMEOUT                   = 30 * 1000; // Maximum time for an alarm in milliseconds
+const unsigned long ALARM_TIMEOUT                   = 60 * 1000; // Maximum time for an alarm in milliseconds after the alarm is triggered
 
 int releasePin = -1; // Pin to check for release after button press, -1 if not waiting for any button release
 
@@ -166,6 +166,7 @@ AlarmState runSecurityLogic() {
     }
 
     if (isWaitingForRelease()) {
+      Serial.println("Waiting for button release...");
       // If we're waiting for a button release, do not handle button presses or blinking effect
       return alarmState;
     }
